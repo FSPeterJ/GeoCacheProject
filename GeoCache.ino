@@ -87,7 +87,8 @@ Finals Day
 // NOTE: You must not use digital pins 0, 1, 6, 7, 8, 10, 11, 12, 13 for implementing your button.  
 // These digital pins are being used by GPS, SecureDigital and NeoPixel.
 
-#define NEO_ON 0		// NeoPixelShield
+#define NEO_ON 1		// NeoPixelShield
+#define NEO_DEBUG_ON 1		// NeoPixelShield
 #define TRM_ON 1		// SerialTerminal
 #define SDC_ON 0		// SecureDigital
 #define GPS_ON 1		// Live GPS Message (off = simulated)
@@ -97,7 +98,7 @@ Finals Day
 #define GPS_TX	7		// GPS transmit
 #define GPS_RX	8		// GPS receive
 
-// GPS message buffer 128 was default, but GPRMC spec does not exceed 82 characters per message
+// GPS message buffer 128 was default, but GPRMC spec does not exceed 82 characters per message - PBJ
 #define GPS_RX_BUFSIZ	83
 char cstr[GPS_RX_BUFSIZ];
 
@@ -119,6 +120,98 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(40, NEO_TX, NEO_GRB + NEO_KHZ800);
 #if SDC_ON
 #include <SD.h>
 #endif
+
+
+
+#if NEO_DEBUG_ON && NEO_ON
+// Fill the dots one after the other with a color
+void colorWipe(uint32_t c, uint8_t wait) {
+	for (uint16_t i = 0; i<strip.numPixels(); i++) {
+		strip.setPixelColor(i, c);
+		strip.show();
+		delay(wait);
+	}
+}
+
+void rainbow(uint8_t wait) {
+	uint16_t i, j;
+
+	for (j = 0; j<256; j++) {
+		for (i = 0; i<strip.numPixels(); i++) {
+			strip.setPixelColor(i, Wheel((i + j) & 255));
+		}
+		strip.show();
+		delay(wait);
+	}
+}
+
+// Slightly different, this makes the rainbow equally distributed throughout
+void rainbowCycle(uint8_t wait) {
+	uint16_t i, j;
+
+	for (j = 0; j<256 * 5; j++) { // 5 cycles of all colors on wheel
+		for (i = 0; i< strip.numPixels(); i++) {
+			strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
+		}
+		strip.show();
+		delay(wait);
+	}
+}
+
+//Theatre-style crawling lights.
+void theaterChase(uint32_t c, uint8_t wait) {
+	for (int j = 0; j<10; j++) {  //do 10 cycles of chasing
+		for (int q = 0; q < 3; q++) {
+			for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
+				strip.setPixelColor(i + q, c);    //turn every third pixel on
+			}
+			strip.show();
+
+			delay(wait);
+
+			for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
+				strip.setPixelColor(i + q, 0);        //turn every third pixel off
+			}
+		}
+	}
+}
+
+//Theatre-style crawling lights with rainbow effect
+void theaterChaseRainbow(uint8_t wait) {
+	for (int j = 0; j < 256; j++) {     // cycle all 256 colors in the wheel
+		for (int q = 0; q < 3; q++) {
+			for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
+				strip.setPixelColor(i + q, Wheel((i + j) % 255));    //turn every third pixel on
+			}
+			strip.show();
+
+			delay(wait);
+
+			for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
+				strip.setPixelColor(i + q, 0);        //turn every third pixel off
+			}
+		}
+	}
+}
+
+// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+uint32_t Wheel(byte WheelPos) {
+	WheelPos = 255 - WheelPos;
+	if (WheelPos < 85) {
+		return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+	}
+	if (WheelPos < 170) {
+		WheelPos -= 85;
+		return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+	}
+	WheelPos -= 170;
+	return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+}
+
+#endif
+
+
 
 /*
 Following is a Decimal Degrees formatted waypoint for the large tree
@@ -172,8 +265,13 @@ Decimal degrees coordinate.
 **************************************************/
 float degMin2DecDeg(char *cind, char *ccor)
 {
-	float degrees = 0.0;
 
+	char temp[5];
+	float degrees = 0.0;
+	for (int i = 0; i < sizeof(temp); i++)
+	{
+
+	}
 	// add code here
 
 	return(degrees);
@@ -183,7 +281,7 @@ float degMin2DecDeg(char *cind, char *ccor)
 Calculate Great Circle Distance between to coordinates using
 Haversine formula.
 
-float calcDistance(float flat1, float flon1, float flat2, float flon2)
+float  (float flat1, float flon1, float flat2, float flon2)
 
 EARTH_RADIUS_FEET = 3959.00 radius miles * 5280 feet per mile
 
@@ -229,7 +327,8 @@ float calcBearing(float flat1, float flon1, float flat2, float flon2)
 **** GEO FUNCTIONS - END**************************
 *************************************************/
 
-#if NEO_ON
+
+
 /*
 Sets target number, heading and distance on NeoPixel Display
 
@@ -238,9 +337,11 @@ by this function do not need to be passed in, since these
 parameters are in global data space.
 
 */
+#if NEO_ON
 void setNeoPixel(void)
 {
-	// add code here
+	//strip.
+
 }
 
 #endif	// NEO_ON
@@ -390,6 +491,23 @@ void setup(void)
 
 void loop(void)
 {
+
+
+#if NEO_DEBUG_ON && NEO_ON
+	// Some example procedures showing how to display to the pixels:
+	colorWipe(strip.Color(255, 0, 0), 50); // Red
+	colorWipe(strip.Color(0, 255, 0), 50); // Green
+	colorWipe(strip.Color(0, 0, 255), 50); // Blue
+										   //colorWipe(strip.Color(0, 0, 0, 255), 50); // White RGBW
+										   // Send a theater pixel chase in...
+	theaterChase(strip.Color(127, 127, 127), 50); // White
+	theaterChase(strip.Color(127, 0, 0), 50); // Red
+	theaterChase(strip.Color(0, 0, 127), 50); // Blue
+
+	rainbow(20);
+	rainbowCycle(20);
+	theaterChaseRainbow(50);
+#endif
 	// max 1 second blocking call till GPS message received
 	getGPSMessage();
 
@@ -412,12 +530,15 @@ void loop(void)
 	}
 
 #if NEO_ON
-	// set NeoPixel target display
-	setNeoPixel(target, heading, distance);
+	// set NeoPixel target display  target, heading, distance
+	setNeoPixel();
 #endif		
+
+
 
 #if TRM_ON
 	// print debug information to Serial Terminal
 	Serial.println(cstr);
 #endif		
 }
+
