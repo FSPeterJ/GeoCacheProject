@@ -1,6 +1,4 @@
 #include <math.h>
-#include <Adafruit_NeoPixel.h>
-
 /******************************************************************************
 
 GeoCache Hunt Project (GeoCache.cpp)
