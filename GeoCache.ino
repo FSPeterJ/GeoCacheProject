@@ -400,7 +400,7 @@ void loop(void)
 
 #if SDC_ON
 		// write current position to SecureDigital then flush
-#endif
+#endif 
 
 		break;
 	}
