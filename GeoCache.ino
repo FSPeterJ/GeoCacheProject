@@ -1,3 +1,5 @@
+#include <math.h>
+
 /******************************************************************************
 
 GeoCache Hunt Project (GeoCache.cpp)
@@ -192,7 +194,15 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 {
 	float distance = 0.0;
 
-	// add code here
+	float dx, dy, dz;
+	flon1 -= flon2;
+	flon1 *= (3.1415926536 / 180), flat1 *= (3.1415926536 / 180), flat2 *= (3.1415926536 / 180);
+
+	dz = sin(flat1) - sin(flat2);
+	dx = cos(flon1) * cos(flat1) - cos(flat2);
+	dy = sin(flon1) * cos(flat1);
+	
+	distance = asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * 6371);
 
 	return(distance);
 }
