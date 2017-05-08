@@ -80,8 +80,12 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Adafruit_NeoPixel.h" />
     <ClInclude Include="__vm\.GeoCache.vsarduino.h" />
     <ClInclude Include="__vm\.GeoCacheProject.vsarduino.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Adafruit_NeoPixel.cpp" />
   </ItemGroup>
   <PropertyGroup>
     <DebuggerFlavor>VisualMicroDebugger</DebuggerFlavor>

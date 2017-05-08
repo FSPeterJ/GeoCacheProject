@@ -25,4 +25,9 @@
   <ItemGroup>
     <None Include="GeoCache.ino" />
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Adafruit_NeoPixel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
 </Project>

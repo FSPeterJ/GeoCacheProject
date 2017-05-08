@@ -116,7 +116,7 @@ SoftwareSerial gps(GPS_RX, GPS_TX);
 #endif
 
 #if NEO_ON
-#include <Adafruit_NeoPixel.h>
+#include "Adafruit_NeoPixel.h"
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(40, NEO_TX, NEO_GRB + NEO_KHZ800);
 #endif
 
@@ -310,7 +310,7 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 	dx = cos(flon1) * cos(flat1) - cos(flat2);
 	dy = sin(flon1) * cos(flat1);
 	
-	distance = asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * 6371);
+	distance = ( asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * 6371);
 
 	// This will return distance in KM -G
 	//Conversion from KM to feet : distance *= 3280.8 -G
