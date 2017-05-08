@@ -10,8 +10,8 @@ Team Number:
 
 Team Members:
 
-1.
-2.
+1. Gustavo Lattari
+2. Peter Jefferys
 3.
 4.
 
@@ -81,6 +81,12 @@ enable all these libraries at the same time.  You must have have
 NEO_ON, GPS_ON and SDC_ON during the actual GeoCache Flag Hunt on
 Finals Day
 */
+
+
+
+// NOTE: You must not use digital pins 0, 1, 6, 7, 8, 10, 11, 12, 13 for implementing your button.  
+// These digital pins are being used by GPS, SecureDigital and NeoPixel.
+
 #define NEO_ON 0		// NeoPixelShield
 #define TRM_ON 1		// SerialTerminal
 #define SDC_ON 0		// SecureDigital
