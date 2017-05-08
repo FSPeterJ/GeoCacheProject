@@ -43,7 +43,7 @@ Degrees format(DDD.DDDDDD) is latitude(23.118757) and longitude(120.274060).  By
 the way, this coordinate is GlobalTop Technology in Taiwan, who designed and
 manufactured the GPS Chip.
 
-"$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,165.48,260406,3.05,W,A*2C/r/n"
+"$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,123.48,260406,3.05,W,A*2C/r/n"
 
 $GPRMC,         // GPRMC Message
 064951.000,     // utc time hhmmss.sss
@@ -90,7 +90,7 @@ Finals Day
 // These digital pins are being used by GPS, SecureDigital and NeoPixel.
 
 #define NEO_ON 1		// NeoPixelShield
-#define NEO_DEBUG_ON 1		// NeoPixelShield
+#define NEO_DEBUG_ON 0		// NeoPixelShield
 #define TRM_ON 1		// SerialTerminal
 #define SDC_ON 0		// SecureDigital
 #define GPS_ON 1		// Live GPS Message (off = simulated)
@@ -105,9 +105,9 @@ Finals Day
 char cstr[GPS_RX_BUFSIZ];
 
 // global variables
-uint8_t target = 0;		// target number
-float heading = 0.0;	// target heading
-float distance = 0.0;	// target distance
+uint8_t target = 0;		// Selected target number 
+float heading = 0.0;	// target heading in angle
+float distance = 0.0;	// target distance in feet
 
 #if GPS_ON
 #include <SoftwareSerial.h>
@@ -253,7 +253,7 @@ These are GPS command messages (only a few are used).
 *************************************************/
 
 /**************************************************
-Convert Degrees Minutes (DDMM.MMMM) into Decimal Degrees (DDD.DDDD)
+Convert Degrees Minutes (DDDMM.MMMM) into Decimal Degrees (DDD.DDDD)
 
 float degMin2DecDeg(char *cind, char *ccor)
 
@@ -350,9 +350,55 @@ parameters are in global data space.
 #if NEO_ON
 void setNeoPixel(void)
 {
-	//strip.
+#if NEO_DEBUG_ON
+	// Some example procedures showing how to display to the pixels:
+	colorWipe(strip.Color(255, 0, 0), 50); // Red
+	colorWipe(strip.Color(0, 255, 0), 50); // Green
+	colorWipe(strip.Color(0, 0, 255), 50); // Blue
+										   //colorWipe(strip.Color(0, 0, 0, 255), 50); // White RGBW
+										   // Send a theater pixel chase in...
+	theaterChase(strip.Color(127, 127, 127), 50); // White
+	theaterChase(strip.Color(127, 0, 0), 50); // Red
+	theaterChase(strip.Color(0, 0, 127), 50); // Blue
+
+	rainbow(20);
+	rainbowCycle(20);
+	theaterChaseRainbow(50);
+#endif
+
+	strip.setPixelColor(1, 255,255,255);
+	strip.setPixelColor(1, 255,0,0);
+	strip.setPixelColor(1, 0,255,0);
+	strip.setPixelColor(1, 0,0,255);
+	strip.setPixelColor(1, 255,255,0);
+	strip.setPixelColor(1, 255,0,255);
+	strip.setPixelColor(1, 0,255,255);
+	strip.setPixelColor(1, 255,255,0);
+	strip.
 
 }
+
+/*
+Progress Bar
+
+Distance
+
+Green - 9		strip.setPixelColor(1, 0,255,0);
+Lime Green - 8	strip.setPixelColor(1, 127,255,0);
+Yellow - 7		strip.setPixelColor(1, 255,255,0);
+Orange - 6		strip.setPixelColor(1, 255,127,);
+Red - 5			strip.setPixelColor(1, 255,0,0);
+Pink - 4		strip.setPixelColor(1, 255,0,255);
+Purple - 3		strip.setPixelColor(1, 127,0,255);
+Blue - 2		strip.setPixelColor(1, 0,0,255);
+Cyan - 1		strip.setPixelColor(1, 0, 127,255);
+Black - 0		strip.setPixelColor(1, 0,0,0);
+*/
+
+void distance() {
+	
+}
+
 
 #endif	// NEO_ON
 
@@ -468,6 +514,11 @@ void getGPSMessage(void)
 
 #endif	// GPS_ON
 
+//==============
+// Setup
+//=====================================================
+// Only the main loop should be below this function
+//=====================================================
 void setup(void)
 {
 #if TRM_ON
@@ -475,8 +526,12 @@ void setup(void)
 	Serial.begin(115200);
 #endif	
 
+	//Referenced https://github.com/adafruit/Adafruit_NeoPixel/blob/master/examples/strandtest/strandtest.ino
 #if NEO_ON
 	// init NeoPixel Shield
+	pinMode(NEO_ON, OUTPUT);
+	strip.begin();
+	strip.show(); // Initialize all pixels to 'off'
 #endif	
 
 #if SDC_ON
@@ -499,25 +554,18 @@ void setup(void)
 	// init target button here
 }
 
+
+
+//==============
+// MAIN LOOP
+//=====================================================
+// Nothing should be after this function
+//=====================================================
 void loop(void)
 {
 
 
-#if NEO_DEBUG_ON && NEO_ON
-	// Some example procedures showing how to display to the pixels:
-	colorWipe(strip.Color(255, 0, 0), 50); // Red
-	colorWipe(strip.Color(0, 255, 0), 50); // Green
-	colorWipe(strip.Color(0, 0, 255), 50); // Blue
-										   //colorWipe(strip.Color(0, 0, 0, 255), 50); // White RGBW
-										   // Send a theater pixel chase in...
-	theaterChase(strip.Color(127, 127, 127), 50); // White
-	theaterChase(strip.Color(127, 0, 0), 50); // Red
-	theaterChase(strip.Color(0, 0, 127), 50); // Blue
 
-	rainbow(20);
-	rainbowCycle(20);
-	theaterChaseRainbow(50);
-#endif
 	// max 1 second blocking call till GPS message received
 	getGPSMessage();
 
