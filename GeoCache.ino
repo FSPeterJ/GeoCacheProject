@@ -1,4 +1,5 @@
 #include <math.h>
+#include <Adafruit_NeoPixel.h>
 
 /******************************************************************************
 
@@ -296,6 +297,9 @@ distance in feet (3959 earth radius in miles * 5280 feet per mile)
 **************************************************/
 float calcDistance(float flat1, float flon1, float flat2, float flon2)
 {
+
+	//Code extracted from https://rosettacode.org/wiki/Haversine_formula - G
+
 	float distance = 0.0;
 
 	float dx, dy, dz;
@@ -308,6 +312,8 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 	
 	distance = asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * 6371);
 
+	// This will return distance in KM -G
+	//Conversion from KM to feet : distance *= 3280.8 -G
 	return(distance);
 }
 
