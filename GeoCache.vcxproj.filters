@@ -18,7 +18,7 @@
     <ClInclude Include="__vm\.GeoCache.vsarduino.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Adafruit_NeoPixel.h">
+    <ClInclude Include="__vm\.GeoCacheProject.vsarduino.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
