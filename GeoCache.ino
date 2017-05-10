@@ -387,20 +387,49 @@ Progress Bar
 
 Distance
 
-Green - 9		strip.setPixelColor(1, 0,255,0);
-Lime Green - 8	strip.setPixelColor(1, 127,255,0);
-Yellow - 7		strip.setPixelColor(1, 255,255,0);
-Orange - 6		strip.setPixelColor(1, 255,127,);
-Red - 5			strip.setPixelColor(1, 255,0,0);
-Pink - 4		strip.setPixelColor(1, 255,0,255);
-Purple - 3		strip.setPixelColor(1, 127,0,255);
-Blue - 2		strip.setPixelColor(1, 0,0,255);
-Cyan - 1		strip.setPixelColor(1, 0, 127,255);
-Black - 0		strip.setPixelColor(1, 0,0,0);
+Green -			8	strip.setPixelColor(1, 0,255,0);
+Lime Green -	7	strip.setPixelColor(1, 127,255,0);
+Yellow -		6	strip.setPixelColor(1, 255,255,0);
+Orange -		5	strip.setPixelColor(1, 255,127,);
+Red -			4	strip.setPixelColor(1, 255,0,0);
+
+
+
 */
 
-void distance() {
-	
+#define DISTANCE_LONG_FACTOR 100
+#define DISTANCE_MED_FACTOR 25
+#define DISTANCE_SHORT_FACTOR 0.5
+
+uint32_t ColorSelect[8] ={
+	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//Cyan -			0	strip.setPixelColor(1, 0, 127,255);
+	((uint32_t)0 << 16) | ((uint32_t)0 << 8) | 255,		//Blue -			1	strip.setPixelColor(1, 0,0,255);
+	((uint32_t)127 << 16) | ((uint32_t)0 << 8) | 255,	//Purple -			2	strip.setPixelColor(1, 127,0,255);
+	((uint32_t)255 << 16) | ((uint32_t)0 << 8) | 255,	//Pink -			3	strip.setPixelColor(1, 255,0,255);
+	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
+	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
+	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
+	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
+}
+
+void Distance() {
+	float displaydistance;
+	if(distance > 1000)
+	{
+		displaydistance = distance/100;
+	}
+	else if(distance > 100)
+	{
+		displaydistance = distance/25;
+	}
+	else
+	{
+		displaydistance = distance/.5;
+	}
+	displaydistance = displaydistance/5;
+	for(int i = 0; i<5; ++i){
+
+	};
 }
 
 
