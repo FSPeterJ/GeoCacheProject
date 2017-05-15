@@ -92,14 +92,21 @@ Finals Day
 #define NEO_DEBUG_ON 0		// NeoPixelShield
 #define TRM_ON 1		// SerialTerminal
 #define SDC_ON 0		// SecureDigital
-#define GPS_ON 1		// Live GPS Message (off = simulated)
+#define GPS_ON 0		// Live GPS Message (off = simulated)
 
 // define pin usage
 #define NEO_TX	6		// NEO transmit
 #define GPS_TX	7		// GPS transmit
 #define GPS_RX	8		// GPS receive
 
-// GPS message buffer 128 was default, but GPRMC spec does not exceed 82 characters per message - PBJ
+
+#define DISTANCE_LONG_FACTOR 25
+#define DISTANCE_MED_FACTOR 10
+#define DISTANCE_SHORT_FACTOR 1
+
+#define COLORSTAGING 3
+
+// GPS message buffer was at 128 default, but GPRMC spec does not exceed 82 characters per message - PBJ
 #define GPS_RX_BUFSIZ	83
 char cstr[GPS_RX_BUFSIZ];
 
@@ -127,7 +134,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(40, NEO_TX, NEO_GRB + NEO_KHZ800);
 #if NEO_DEBUG_ON && NEO_ON
 // Fill the dots one after the other with a color
 void colorWipe(uint32_t c, uint8_t wait) {
-	for (uint16_t i = 0; i<strip.numPixels(); i++) {
+	for (uint16_t i = 0; i < strip.numPixels(); i++) {
 		strip.setPixelColor(i, c);
 		strip.show();
 		delay(wait);
@@ -137,8 +144,8 @@ void colorWipe(uint32_t c, uint8_t wait) {
 void rainbow(uint8_t wait) {
 	uint16_t i, j;
 
-	for (j = 0; j<256; j++) {
-		for (i = 0; i<strip.numPixels(); i++) {
+	for (j = 0; j < 256; j++) {
+		for (i = 0; i < strip.numPixels(); i++) {
 			strip.setPixelColor(i, Wheel((i + j) & 255));
 		}
 		strip.show();
@@ -150,8 +157,8 @@ void rainbow(uint8_t wait) {
 void rainbowCycle(uint8_t wait) {
 	uint16_t i, j;
 
-	for (j = 0; j<256 * 5; j++) { // 5 cycles of all colors on wheel
-		for (i = 0; i< strip.numPixels(); i++) {
+	for (j = 0; j < 256 * 5; j++) { // 5 cycles of all colors on wheel
+		for (i = 0; i < strip.numPixels(); i++) {
 			strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
 		}
 		strip.show();
@@ -161,7 +168,7 @@ void rainbowCycle(uint8_t wait) {
 
 //Theatre-style crawling lights.
 void theaterChase(uint32_t c, uint8_t wait) {
-	for (int j = 0; j<10; j++) {  //do 10 cycles of chasing
+	for (int j = 0; j < 10; j++) {  //do 10 cycles of chasing
 		for (int q = 0; q < 3; q++) {
 			for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
 				strip.setPixelColor(i + q, c);    //turn every third pixel on
@@ -307,8 +314,8 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 	dz = sin(flat1) - sin(flat2);
 	dx = cos(flon1) * cos(flat1) - cos(flat2);
 	dy = sin(flon1) * cos(flat1);
-	
-	distance = ( asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * 6371);
+
+	distance = (asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * 6371);
 
 	// This will return distance in KM -G
 	//Conversion from KM to feet : distance *= 3280.8 -G
@@ -330,7 +337,7 @@ angle in decimal degrees from magnetic north (normalize to a range of 0 to 360)
 float calcBearing(float flat1, float flon1, float flat2, float flon2)
 {
 	float bearing = 0.0;
-	
+
 
 	// add code here
 
@@ -352,85 +359,70 @@ parameters are in global data space.
 
 */
 #if NEO_ON
-void setNeoPixel(void)
-{
-#if NEO_DEBUG_ON
-	// Some example procedures showing how to display to the pixels:
-	colorWipe(strip.Color(255, 0, 0), 50); // Red
-	colorWipe(strip.Color(0, 255, 0), 50); // Green
-	colorWipe(strip.Color(0, 0, 255), 50); // Blue
-										   //colorWipe(strip.Color(0, 0, 0, 255), 50); // White RGBW
-										   // Send a theater pixel chase in...
-	theaterChase(strip.Color(127, 127, 127), 50); // White
-	theaterChase(strip.Color(127, 0, 0), 50); // Red
-	theaterChase(strip.Color(0, 0, 127), 50); // Blue
 
-	rainbow(20);
-	rainbowCycle(20);
-	theaterChaseRainbow(50);
-#endif
 
-	strip.setPixelColor(1, 255,255,255);
-	strip.setPixelColor(1, 255,0,0);
-	strip.setPixelColor(1, 0,255,0);
-	strip.setPixelColor(1, 0,0,255);
-	strip.setPixelColor(1, 255,255,0);
-	strip.setPixelColor(1, 255,0,255);
-	strip.setPixelColor(1, 0,255,255);
-	strip.setPixelColor(1, 255,255,0);
-	strip.
 
+
+unsigned char dColors[] = {
+	0,
+	127,//3 type COLORSTAGING
+	255//2 type COLORSTAGING
+};
+
+
+
+uint32_t StagedColor(int number) {
+	int r = (number % COLORSTAGING);
+	int g = (int)((float)number * (1.0f / 3.0f)) % COLORSTAGING;
+	int b = (int)((float)number * (1.0f / 9.0f)) % COLORSTAGING;
+	return strip.Color(dColors[r], dColors[g], dColors[b]);
 }
 
-/*
-Progress Bar
 
-Distance
-
-Green -			8	strip.setPixelColor(1, 0,255,0);
-Lime Green -	7	strip.setPixelColor(1, 127,255,0);
-Yellow -		6	strip.setPixelColor(1, 255,255,0);
-Orange -		5	strip.setPixelColor(1, 255,127,);
-Red -			4	strip.setPixelColor(1, 255,0,0);
-
-
-
-*/
-
-#define DISTANCE_LONG_FACTOR 100
-#define DISTANCE_MED_FACTOR 25
-#define DISTANCE_SHORT_FACTOR 0.5
-
-uint32_t ColorSelect[8] ={
-	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//Cyan -			0	strip.setPixelColor(1, 0, 127,255);
-	((uint32_t)0 << 16) | ((uint32_t)0 << 8) | 255,		//Blue -			1	strip.setPixelColor(1, 0,0,255);
-	((uint32_t)127 << 16) | ((uint32_t)0 << 8) | 255,	//Purple -			2	strip.setPixelColor(1, 127,0,255);
-	((uint32_t)255 << 16) | ((uint32_t)0 << 8) | 255,	//Pink -			3	strip.setPixelColor(1, 255,0,255);
-	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
-	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
-	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
-	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
-}
-
-void Distance() {
-	float displaydistance;
-	if(distance > 1000)
+void DistanceBarRender(int dist = distance, int factor = 25) {
+	if (dist > 1000)
 	{
-		displaydistance = distance/100;
+		factor = DISTANCE_LONG_FACTOR;
 	}
-	else if(distance > 100)
+	else if (dist > 100)
 	{
-		displaydistance = distance/25;
+		factor = DISTANCE_MED_FACTOR;
 	}
 	else
 	{
-		displaydistance = distance/.5;
+		factor = DISTANCE_SHORT_FACTOR;
 	}
-	displaydistance = displaydistance/5;
-	for(int i = 0; i<5; ++i){
+	for (int i = 0; i < 5; i++)
+	{
+		//Serial.println(distance);
 
-	};
+
+		unsigned int x = (dist + ((5*factor)- i*factor + factor))/ (5 * factor);
+		uint32_t temp = StagedColor(x);
+
+		strip.setPixelColor(i*8, temp);
+		strip.show();
+	}
+};
+
+
+unsigned long rendertime;
+void setNeoPixel(void)
+{
+	
+	if ((rendertime-millis()) > 250 ) {
+		rendertime = millis();
+		Serial.println(distance);
+			DistanceBarRender(distance);
+
+	}
+
+
+
 }
+
+
+
 
 
 #endif	// NEO_ON
@@ -539,6 +531,7 @@ void getGPSMessage(void)
 
 	// do this once a second
 	gpsTime = millis() + 1000;
+	distance += 1;
 
 	memcpy(cstr, "$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,165.48,260406,3.05,W,A*2C", sizeof(cstr));
 
@@ -564,6 +557,7 @@ void setup(void)
 	// init NeoPixel Shield
 	pinMode(NEO_ON, OUTPUT);
 	strip.begin();
+	strip.setBrightness(16);
 	strip.show(); // Initialize all pixels to 'off'
 #endif	
 
