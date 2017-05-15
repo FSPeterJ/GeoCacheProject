@@ -325,7 +325,7 @@ unsigned long rendertime;
 void setNeoPixel(void)
 {
 	// Update min. every 250ms
-	if ((rendertime - millis()) > 5000) {
+	if ((rendertime - millis()) > 250) {
 		rendertime = millis();
 		DistanceBarRender(distance);
 	}
