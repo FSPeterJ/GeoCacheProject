@@ -273,14 +273,21 @@ Decimal degrees coordinate.
 **************************************************/
 float degMin2DecDeg(char *cind, char *ccor)
 {
-
-	char temp[5];
+	//Source for reference : http://stackoverflow.com/questions/18442158/latitude-longitude-in-wrong-format-dddmm-mmmm-2832-3396n -G
+	
 	float degrees = 0.0;
-	for (int i = 0; i < sizeof(temp); i++)
-	{
+	double a = strtod(ccor, 0);
+	double d = (int)a / 100;
+	a -= d * 100;
+	degrees = (float)(d + (a / 60));
 
+	if (cind[0] == 'N' || cind[0] == 'E')
+	{
+		//degrees positive if north or east
 	}
-	// add code here
+	//else degrees negative if south or west
+	else if (cind[0] = 'S' || cind[0] == 'W')
+		degrees *= -1;
 
 	return(degrees);
 }
@@ -319,6 +326,8 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 
 	// This will return distance in KM -G
 	//Conversion from KM to feet : distance *= 3280.8 -G
+
+	distance *= 3280.839895;
 	return(distance);
 }
 
@@ -336,10 +345,13 @@ angle in decimal degrees from magnetic north (normalize to a range of 0 to 360)
 **************************************************/
 float calcBearing(float flat1, float flon1, float flat2, float flon2)
 {
+
+	//Source: http://mathforum.org/library/drmath/view/55417.html
+
 	float bearing = 0.0;
-
-
-	// add code here
+	float distance = calcDistance(flat1, flon1, flat2, flon2);
+	float temp = (sin(flat2) - sin(flat1)*cos(distance)) / (sin(distance) * cos(flat1));
+	bearing = acos(temp);
 
 	return(bearing);
 }
