@@ -92,7 +92,7 @@ Finals Day
 #define NEO_DEBUG_ON 0		// NeoPixelShield
 #define TRM_ON 1		// SerialTerminal
 #define SDC_ON 0		// SecureDigital
-#define GPS_ON 0		// Live GPS Message (off = simulated)
+#define GPS_ON 1	// Live GPS Message (off = simulated)
 
 // define pin usage
 #define NEO_TX	6		// NEO transmit
@@ -107,7 +107,7 @@ Finals Day
 #define COLORSTAGING 3
 
 // GPS message buffer was at 128 default, but GPRMC spec does not exceed 82 characters per message - PBJ
-#define GPS_RX_BUFSIZ	83
+#define GPS_RX_BUFSIZ	128
 char cstr[GPS_RX_BUFSIZ];
 
 // global variables
@@ -183,7 +183,7 @@ Decimal degrees coordinate.
 float degMin2DecDeg(char *cind, char *ccor)
 {
 	//Source for reference : http://stackoverflow.com/questions/18442158/latitude-longitude-in-wrong-format-dddmm-mmmm-2832-3396n -G
-	
+
 	float degrees = 0.0;
 	double a = strtod(ccor, 0);
 	double d = (int)a / 100;
@@ -315,13 +315,7 @@ void DistanceBarRender(int dist = distance, int factor = 25) {
 	}
 	for (int i = 0; i < 5; i++)
 	{
-		//Serial.println(distance);
-
-
-		unsigned int x = (dist + ((5*factor)- i*factor + factor))/ (5 * factor);
-		uint32_t temp = StagedColor(x);
-
-		strip.setPixelColor(i*8, temp);
+		strip.setPixelColor(i * 8, StagedColor((dist + ((5 * factor) - i*factor + factor)) / (5 * factor)));
 		strip.show();
 	}
 };
@@ -330,15 +324,11 @@ void DistanceBarRender(int dist = distance, int factor = 25) {
 unsigned long rendertime;
 void setNeoPixel(void)
 {
-	
-	if ((rendertime-millis()) > 250 ) {
+	// Update min. every 250ms
+	if ((rendertime - millis()) > 5000) {
 		rendertime = millis();
-		Serial.println(distance);
-			DistanceBarRender(distance);
-
+		DistanceBarRender(distance);
 	}
-
-
 
 }
 
@@ -347,6 +337,45 @@ void setNeoPixel(void)
 
 
 #endif	// NEO_ON
+
+
+
+/*
+
+Following is the GPS Shield "GPRMC" Message Structure.This message is received
+once a second.You must parse the message to obtain the parameters required for
+the GeoCache project.GPS provides coordinates in Degrees Minutes(DDDMM.MMMM).
+The coordinates in the following GPRMC sample message, after converting to Decimal
+Degrees format(DDD.DDDDDD) is latitude(23.118757) and longitude(120.274060).By
+the way, this coordinate is GlobalTop Technology in Taiwan, who designed and
+manufactured the GPS Chip.
+
+"$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,123.48,260406,3.05,W,A*2C/r/n"
+
+$GPRMC,         // GPRMC Message
+064951.000,     // utc time hhmmss.sss
+A,              // status A=data valid or V=data not valid
+2307.1256,      // Latitude 2307.1256 (degrees minutes format dddmm.mmmm)
+N,              // N/S Indicator N=north or S=south
+12016.4438,     // Longitude 12016.4438 (degrees minutes format dddmm.mmmm)
+E,              // E/W Indicator E=east or W=west
+0.03,           // Speed over ground knots
+165.48,         // Course over ground (decimal degrees format ddd.dd)
+260406,         // date ddmmyy
+3.05,           // Magnetic variation (decimal degrees format ddd.dd)
+W,              // E=east or W=west
+A               // Mode A=Autonomous D=differential E=Estimated
+* 2C             // checksum
+/ r / n            // return and newline
+
+*/
+void ProcessGPSMessage() {
+	//Check if valid RMC
+	if (cstr[18] == 'A') {
+
+		
+	};
+}
 
 #if GPS_ON
 /*
@@ -368,54 +397,60 @@ none
 */
 void getGPSMessage(void)
 {
-	uint8_t x = 0, y = 0, isum = 0;
+	// Dunno why they didn't check to see if there's a message.  No sense just sitting there waiting for it.  We need some cycles for I/O - PBJ
+	if (gps.available()) {
+		uint8_t x = 0, y = 0, isum = 0;
 
-	memset(cstr, 0, sizeof(cstr));
+		memset(cstr, 0, sizeof(cstr));
 
-	// get nmea string
-	while (true)
-	{
-		if (gps.peek() != -1)
+		// get nmea string
+		while (true)
 		{
-			cstr[x] = gps.read();
-
-			// if multiple inline messages, then restart
-			if ((x != 0) && (cstr[x] == '$'))
+			if (gps.peek() != -1)
 			{
-				x = 0;
-				cstr[x] = '$';
-			}
+				cstr[x] = gps.read();
 
-			// if complete message
-			if ((cstr[0] == '$') && (cstr[x++] == '\n'))
-			{
-				// nul terminate string before /r/n
-				cstr[x - 2] = 0;
-
-				// if checksum not found
-				if (cstr[x - 5] != '*')
+				// if multiple inline messages, then restart
+				if ((x != 0) && (cstr[x] == '$'))
 				{
+					Serial.println(cstr);
 					x = 0;
-					continue;
+					cstr[x] = '$';
 				}
 
-				// convert hex checksum to binary
-				isum = strtol(&cstr[x - 4], NULL, 16);
-
-				// reverse checksum
-				for (y = 1; y < (x - 5); y++) isum ^= cstr[y];
-
-				// if invalid checksum
-				if (isum != 0)
+				// if complete message
+				if ((cstr[0] == '$') && (cstr[x++] == '\n'))
 				{
-					x = 0;
-					continue;
-				}
+					// nul terminate string before /r/n
+					cstr[x - 2] = 0;
 
-				// else valid message
-				break;
+					// if checksum not found
+					if (cstr[x - 5] != '*')
+					{
+						x = 0;
+						continue;
+					}
+
+					// convert hex checksum to binary
+					isum = strtol(&cstr[x - 4], NULL, 16);
+
+					// reverse checksum
+					for (y = 1; y < (x - 5); y++) isum ^= cstr[y];
+
+					// if invalid checksum
+					if (isum != 0)
+					{
+						x = 0;
+						continue;
+					}
+
+					// else valid message
+					break;
+				}
 			}
 		}
+		Serial.println(cstr);
+
 	}
 }
 
@@ -443,6 +478,7 @@ Return:
 none
 
 */
+
 void getGPSMessage(void)
 {
 	static unsigned long gpsTime = 0;
@@ -460,6 +496,22 @@ void getGPSMessage(void)
 }
 
 #endif	// GPS_ON
+
+void SecureDigWrite() {
+	// if GPRMC message (3rd letter = R)
+	while (cstr[3] == 'R')
+	{
+		// parse message parameters
+		// calculated destination heading
+		// calculated destination distance
+		break;
+	}
+}
+
+void TargetChange() {
+
+	target += 1;
+}
 
 //==============
 // Setup
@@ -504,47 +556,34 @@ void setup(void)
 
 
 
+
 //==============
 // MAIN LOOP
 //=====================================================
 // Nothing should be after this function
+// Do not write logic in main loop.
 //=====================================================
 void loop(void)
 {
-
-
-
 	// max 1 second blocking call till GPS message received
+	
 	getGPSMessage();
 
 	// if button pressed, set new target
-
-	// if GPRMC message (3rd letter = R)
-	while (cstr[3] == 'R')
-	{
-		// parse message parameters
-
-		// calculated destination heading
-
-		// calculated destination distance
+	TargetChange();
 
 #if SDC_ON
-		// write current position to SecureDigital then flush
+	// write current position to SecureDigital then flush
+	SecureDigWrite();
 #endif 
-
-		break;
-	}
 
 #if NEO_ON
 	// set NeoPixel target display  target, heading, distance
 	setNeoPixel();
 #endif		
 
-
-
 #if TRM_ON
 	// print debug information to Serial Terminal
-	Serial.println(cstr);
 #endif		
 }
 
