@@ -266,14 +266,21 @@ Decimal degrees coordinate.
 **************************************************/
 float degMin2DecDeg(char *cind, char *ccor)
 {
-
-	char temp[5];
+	//Source for reference : http://stackoverflow.com/questions/18442158/latitude-longitude-in-wrong-format-dddmm-mmmm-2832-3396n -G
+	
 	float degrees = 0.0;
-	for (int i = 0; i < sizeof(temp); i++)
-	{
+	double a = strtod(ccor, 0);
+	double d = (int)a / 100;
+	a -= d * 100;
+	degrees = (float)(d + (a / 60));
 
+	if (cind[0] == 'N' || cind[0] == 'E')
+	{
+		//degrees positive if north or east
 	}
-	// add code here
+	//else degrees negative if south or west
+	else if (cind[0] = 'S' || cind[0] == 'W')
+		degrees *= -1;
 
 	return(degrees);
 }
@@ -312,6 +319,8 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 
 	// This will return distance in KM -G
 	//Conversion from KM to feet : distance *= 3280.8 -G
+
+	distance *= 3280.839895;
 	return(distance);
 }
 
@@ -329,10 +338,13 @@ angle in decimal degrees from magnetic north (normalize to a range of 0 to 360)
 **************************************************/
 float calcBearing(float flat1, float flon1, float flat2, float flon2)
 {
-	float bearing = 0.0;
-	
 
-	// add code here
+	//Source: http://mathforum.org/library/drmath/view/55417.html
+
+	float bearing = 0.0;
+	float distance = calcDistance(flat1, flon1, flat2, flon2);
+	float temp = (sin(flat2) - sin(flat1)*cos(distance)) / (sin(distance) * cos(flat1));
+	bearing = acos(temp);
 
 	return(bearing);
 }
@@ -378,7 +390,8 @@ void setNeoPixel(void)
 	strip.setPixelColor(1, 255,0,255);
 	strip.setPixelColor(1, 0,255,255);
 	strip.setPixelColor(1, 255,255,0);
-	strip.
+	//That last strip was missing code and causing the rest of the code to bug. -G
+	//strip.
 
 }
 
@@ -401,16 +414,18 @@ Red -			4	strip.setPixelColor(1, 255,0,0);
 #define DISTANCE_MED_FACTOR 25
 #define DISTANCE_SHORT_FACTOR 0.5
 
-uint32_t ColorSelect[8] ={
-	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//Cyan -			0	strip.setPixelColor(1, 0, 127,255);
-	((uint32_t)0 << 16) | ((uint32_t)0 << 8) | 255,		//Blue -			1	strip.setPixelColor(1, 0,0,255);
-	((uint32_t)127 << 16) | ((uint32_t)0 << 8) | 255,	//Purple -			2	strip.setPixelColor(1, 127,0,255);
-	((uint32_t)255 << 16) | ((uint32_t)0 << 8) | 255,	//Pink -			3	strip.setPixelColor(1, 255,0,255);
-	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
-	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
-	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
-	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
-}
+//This was also incomplete and causing code to not compile. -G
+//
+//uint32_t ColorSelect[8] ={
+//	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//Cyan -			0	strip.setPixelColor(1, 0, 127,255);
+//	((uint32_t)0 << 16) | ((uint32_t)0 << 8) | 255,		//Blue -			1	strip.setPixelColor(1, 0,0,255);
+//	((uint32_t)127 << 16) | ((uint32_t)0 << 8) | 255,	//Purple -			2	strip.setPixelColor(1, 127,0,255);
+//	((uint32_t)255 << 16) | ((uint32_t)0 << 8) | 255,	//Pink -			3	strip.setPixelColor(1, 255,0,255);
+//	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
+//	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
+//	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
+//	((uint32_t)0 << 16) | ((uint32_t)127 << 8) | 255,	//
+//}
 
 void Distance() {
 	float displaydistance;
