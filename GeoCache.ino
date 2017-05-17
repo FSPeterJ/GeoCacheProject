@@ -107,7 +107,7 @@ Finals Day
 #define COLORSTAGING 3
 
 // GPS message buffer was at 128 default, but GPRMC spec does not exceed 82 characters per message - PBJ
-#define GPS_RX_BUFSIZ	128
+#define GPS_RX_BUFSIZ	83
 char cstr[GPS_RX_BUFSIZ];
 
 // global variables
@@ -129,6 +129,16 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(40, NEO_TX, NEO_GRB + NEO_KHZ800);
 #include <SD.h>
 #endif
 
+struct loc {
+	float lat;
+	float lon;
+};
+
+struct locdata : loc {
+	float time;
+};
+
+loc * targets;
 
 /*
 Following is a Decimal Degrees formatted waypoint for the large tree
@@ -315,6 +325,7 @@ void DistanceBarRender(int dist = distance, int factor = 25) {
 	}
 	for (int i = 0; i < 5; i++)
 	{
+		//This math mess makes me sad :( - Probably can be optimized better PBJ
 		strip.setPixelColor(i * 8, StagedColor((dist + ((5 * factor) - i*factor + factor)) / (5 * factor)));
 		strip.show();
 	}
@@ -331,9 +342,6 @@ void setNeoPixel(void)
 	}
 
 }
-
-
-
 
 
 #endif	// NEO_ON
@@ -371,9 +379,19 @@ A               // Mode A=Autonomous D=differential E=Estimated
 */
 void ProcessGPSMessage() {
 	//Check if valid RMC
-	if (cstr[18] == 'A') {
+	if (cstr[18] == 'V') {
+		locdata temp;
+
+		char substr[10];
+		//std::copy(cstr + 7, cstr + 17, substr + 0);
+		memcpy(substr, cstr + 7, sizeof(substr));
+		substr[10] = '\0';
+		temp.time = atof(substr);
+		Serial.println(substr);
 
 		
+
+		cstr[18] = 'D';  //prevent reduntant process
 	};
 }
 
@@ -397,7 +415,7 @@ none
 */
 void getGPSMessage(void)
 {
-	// Dunno why they didn't check to see if there's a message.  No sense just sitting there waiting for it.  We need some cycles for I/O - PBJ
+	//  No sense just sitting there waiting for it since SofwareSerial is getting to buffer anyways.  We need some cycles for other nonsense - PBJ
 	if (gps.available()) {
 		uint8_t x = 0, y = 0, isum = 0;
 
@@ -566,9 +584,10 @@ void setup(void)
 void loop(void)
 {
 	// max 1 second blocking call till GPS message received
-	
+
 	getGPSMessage();
 
+	ProcessGPSMessage();
 	// if button pressed, set new target
 	TargetChange();
 
