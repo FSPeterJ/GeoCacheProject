@@ -106,6 +106,8 @@ Finals Day
 
 #define COLORSTAGING 3
 
+#define DISTANCE_AVERAGING 5  //Number seconds between averages
+
 // GPS message buffer was at 128 default, but GPRMC spec does not exceed 82 characters per message - PBJ
 #define GPS_RX_BUFSIZ	83
 char cstr[GPS_RX_BUFSIZ];
@@ -132,13 +134,21 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(40, NEO_TX, NEO_GRB + NEO_KHZ800);
 struct loc {
 	float lat;
 	float lon;
+	char NS;
+	char EW;
 };
 
 struct locdata : loc {
+	//cheaper than char array
 	float time;
 };
 
 loc * targets;
+
+//Average 
+locdata AverageBuffer[DISTANCE_AVERAGING];
+
+loc current;
 
 /*
 Following is a Decimal Degrees formatted waypoint for the large tree
@@ -382,16 +392,58 @@ void ProcessGPSMessage() {
 	if (cstr[18] == 'V') {
 		locdata temp;
 
-		char substr[10];
+		char substrbuffer[10];
 		//std::copy(cstr + 7, cstr + 17, substr + 0);
-		memcpy(substr, cstr + 7, sizeof(substr));
-		substr[10] = '\0';
-		temp.time = atof(substr);
-		Serial.println(substr);
+		memcpy(substrbuffer, cstr + 7, sizeof(substrbuffer));
+		substrbuffer[10] = '\0';
+		temp.time = atof(substrbuffer);
+		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
+		int i = 19;
+		int s = i;
+		//Latitude
+		while (cstr[i] != ',' | i < sizeof(cstr))
+		{
+			i++;
+		}
+		if (i != s)
+		{
+			memcpy(substrbuffer, cstr + i, i - s);
+			temp.lat = atof(substrbuffer);
+		}
+		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
+		while (cstr[i] != ',' | i < sizeof(cstr))
+		{
+			i++;
+		}
+		if (i != s)
+		{
+			memcpy(substrbuffer, cstr + i, i - s);
+			temp.NS = atof(substrbuffer);
+		}
+		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
+		//Longitude
+		while (cstr[i] != ',' | i < sizeof(cstr))
+		{
+			i++;
+		}
+		if (i != s)
+		{
+			memcpy(substrbuffer, cstr + i, i - s);
+			temp.lon = atof(substrbuffer);
+		}
+		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
+		while (cstr[i] != ',' | i < sizeof(cstr))
+		{
+			i++;
+		}
+		if (i != s)
+		{
+			memcpy(substrbuffer, cstr + i, i - s);
+			temp.EW = atof(substrbuffer);
+		}
+		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
 
-		
-
-		cstr[18] = 'D';  //prevent reduntant process
+		cstr[18] = 'D';  //prevent reduntant
 	};
 }
 
