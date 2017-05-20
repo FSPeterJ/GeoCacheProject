@@ -84,6 +84,8 @@ Finals Day
 */
 
 
+#define DEBUG 1
+
 
 // NOTE: You must not use digital pins 0, 1, 6, 7, 8, 10, 11, 12, 13 for implementing your button.  
 // These digital pins are being used by GPS, SecureDigital and NeoPixel.
@@ -91,7 +93,7 @@ Finals Day
 #define NEO_ON 1		// NeoPixelShield
 #define NEO_DEBUG_ON 0		// NeoPixelShield
 #define TRM_ON 1		// SerialTerminal
-#define SDC_ON 0		// SecureDigital
+#define SDC_ON 1		// SecureDigital
 #define GPS_ON 1	// Live GPS Message (off = simulated)
 
 // define pin usage
@@ -105,8 +107,9 @@ Finals Day
 #define DISTANCE_SHORT_FACTOR 1
 
 #define COLORSTAGING 3
+#define LED_BAR_LENGTH 5.0
 
-#define DISTANCE_AVERAGING 5  //Number seconds between averages
+#define BUFFER_SIZE 5  //number of history records to store
 
 // GPS message buffer was at 128 default, but GPRMC spec does not exceed 82 characters per message - PBJ
 #define GPS_RX_BUFSIZ	83
@@ -116,6 +119,38 @@ char cstr[GPS_RX_BUFSIZ];
 uint8_t target = 0;		// Selected target number 
 float heading = 0.0;	// target heading in angle
 float distance = 0.0;	// target distance in feet
+
+
+unsigned long rendertime;
+
+
+
+struct loc {
+	float lat;
+	float lon;
+	char NS;
+	char EW;
+};
+
+struct locdata : loc {
+	//cheaper than char array
+	float time;
+	float bearing;
+};
+
+loc targets = {
+	//Tree out front
+	loc{
+		28.594532,
+		-81.304437,
+		'N',
+		'W'
+	}
+};
+
+//Short-term History - Per second
+locdata locdataBuffer[BUFFER_SIZE];
+char locdataCurrent = 0;// The latest location
 
 #if GPS_ON
 #include <SoftwareSerial.h>
@@ -130,25 +165,6 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(40, NEO_TX, NEO_GRB + NEO_KHZ800);
 #if SDC_ON
 #include <SD.h>
 #endif
-
-struct loc {
-	float lat;
-	float lon;
-	char NS;
-	char EW;
-};
-
-struct locdata : loc {
-	//cheaper than char array
-	float time;
-};
-
-loc * targets;
-
-//Average 
-locdata AverageBuffer[DISTANCE_AVERAGING];
-
-loc current;
 
 /*
 Following is a Decimal Degrees formatted waypoint for the large tree
@@ -320,7 +336,7 @@ uint32_t StagedColor(int number) {
 }
 
 
-void DistanceBarRender(int dist = distance, int factor = 25) {
+void DistanceBarRender(float dist = distance, int factor = 25) {
 	if (dist > 1000)
 	{
 		factor = DISTANCE_LONG_FACTOR;
@@ -336,13 +352,12 @@ void DistanceBarRender(int dist = distance, int factor = 25) {
 	for (int i = 0; i < 5; i++)
 	{
 		//This math mess makes me sad :( - Probably can be optimized better PBJ
-		strip.setPixelColor(i * 8, StagedColor((dist + ((5 * factor) - i*factor + factor)) / (5 * factor)));
+		strip.setPixelColor(i * 8, StagedColor((dist + ((LED_BAR_LENGTH * factor) - i*factor + factor)) / (LED_BAR_LENGTH * factor)));
 		strip.show();
 	}
 };
 
 
-unsigned long rendertime;
 void setNeoPixel(void)
 {
 	// Update min. every 250ms
@@ -390,13 +405,12 @@ A               // Mode A=Autonomous D=differential E=Estimated
 void ProcessGPSMessage() {
 	//Check if valid RMC
 	if (cstr[18] == 'V') {
-		locdata temp;
-
+		locdataCurrent = ++locdataCurrent > BUFFER_SIZE ? 0 : ++locdataCurrent;
 		char substrbuffer[10];
-		//std::copy(cstr + 7, cstr + 17, substr + 0);
+
 		memcpy(substrbuffer, cstr + 7, sizeof(substrbuffer));
 		substrbuffer[10] = '\0';
-		temp.time = atof(substrbuffer);
+		locdataBuffer[locdataCurrent].time = atof(substrbuffer);
 		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
 		int i = 19;
 		int s = i;
@@ -408,7 +422,7 @@ void ProcessGPSMessage() {
 		if (i != s)
 		{
 			memcpy(substrbuffer, cstr + i, i - s);
-			temp.lat = atof(substrbuffer);
+			locdataBuffer[locdataCurrent].lat = atof(substrbuffer);
 		}
 		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
 		while (cstr[i] != ',' | i < sizeof(cstr))
@@ -418,7 +432,7 @@ void ProcessGPSMessage() {
 		if (i != s)
 		{
 			memcpy(substrbuffer, cstr + i, i - s);
-			temp.NS = atof(substrbuffer);
+			locdataBuffer[locdataCurrent].NS = atof(substrbuffer);
 		}
 		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
 		//Longitude
@@ -429,7 +443,7 @@ void ProcessGPSMessage() {
 		if (i != s)
 		{
 			memcpy(substrbuffer, cstr + i, i - s);
-			temp.lon = atof(substrbuffer);
+			locdataBuffer[locdataCurrent].lon = atof(substrbuffer);
 		}
 		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
 		while (cstr[i] != ',' | i < sizeof(cstr))
@@ -439,9 +453,14 @@ void ProcessGPSMessage() {
 		if (i != s)
 		{
 			memcpy(substrbuffer, cstr + i, i - s);
-			temp.EW = atof(substrbuffer);
+			locdataBuffer[locdataCurrent].EW = atof(substrbuffer);
 		}
 		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
+		//Skip over speed
+		//while (cstr[i] != ',' | i < sizeof(cstr))
+		//{
+		//	i++;
+		//}
 
 		cstr[18] = 'D';  //prevent reduntant
 	};
@@ -483,7 +502,9 @@ void getGPSMessage(void)
 				// if multiple inline messages, then restart
 				if ((x != 0) && (cstr[x] == '$'))
 				{
+#if DEBUG
 					Serial.println(cstr);
+#endif // DEBUG
 					x = 0;
 					cstr[x] = '$';
 				}
@@ -513,13 +534,14 @@ void getGPSMessage(void)
 						x = 0;
 						continue;
 					}
-
 					// else valid message
 					break;
 				}
 			}
 		}
+#if DEBUG
 		Serial.println(cstr);
+#endif // DEBUG
 
 	}
 }
@@ -649,7 +671,7 @@ void loop(void)
 #endif 
 
 #if NEO_ON
-	// set NeoPixel target display  target, heading, distance
+	// set NeoPixel target display target, heading, distance
 	setNeoPixel();
 #endif		
 
