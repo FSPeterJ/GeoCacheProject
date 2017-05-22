@@ -42,7 +42,7 @@ Degrees format(DDD.DDDDDD) is latitude(23.118757) and longitude(120.274060).  By
 the way, this coordinate is GlobalTop Technology in Taiwan, who designed and
 manufactured the GPS Chip.
 
-"$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,165.48,260406,3.05,W,A*2C/r/n"
+"$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,123.48,260406,3.05,W,A*2C/r/n"
 
 $GPRMC,         // GPRMC Message
 064951.000,     // utc time hhmmss.sss
@@ -89,24 +89,31 @@ Finals Day
 // These digital pins are being used by GPS, SecureDigital and NeoPixel.
 
 #define NEO_ON 1		// NeoPixelShield
-#define NEO_DEBUG_ON 1		// NeoPixelShield
+#define NEO_DEBUG_ON 0		// NeoPixelShield
 #define TRM_ON 1		// SerialTerminal
 #define SDC_ON 0		// SecureDigital
-#define GPS_ON 1		// Live GPS Message (off = simulated)
+#define GPS_ON 1	// Live GPS Message (off = simulated)
 
 // define pin usage
 #define NEO_TX	6		// NEO transmit
 #define GPS_TX	7		// GPS transmit
 #define GPS_RX	8		// GPS receive
 
-// GPS message buffer 128 was default, but GPRMC spec does not exceed 82 characters per message - PBJ
+
+#define DISTANCE_LONG_FACTOR 25
+#define DISTANCE_MED_FACTOR 10
+#define DISTANCE_SHORT_FACTOR 1
+
+#define COLORSTAGING 3
+
+// GPS message buffer was at 128 default, but GPRMC spec does not exceed 82 characters per message - PBJ
 #define GPS_RX_BUFSIZ	83
 char cstr[GPS_RX_BUFSIZ];
 
 // global variables
-uint8_t target = 0;		// target number
-float heading = 0.0;	// target heading
-float distance = 0.0;	// target distance
+uint8_t target = 0;		// Selected target number 
+float heading = 0.0;	// target heading in angle
+float distance = 0.0;	// target distance in feet
 
 #if GPS_ON
 #include <SoftwareSerial.h>
@@ -122,97 +129,16 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(40, NEO_TX, NEO_GRB + NEO_KHZ800);
 #include <SD.h>
 #endif
 
+struct loc {
+	float lat;
+	float lon;
+};
 
+struct locdata : loc {
+	float time;
+};
 
-#if NEO_DEBUG_ON && NEO_ON
-// Fill the dots one after the other with a color
-void colorWipe(uint32_t c, uint8_t wait) {
-	for (uint16_t i = 0; i<strip.numPixels(); i++) {
-		strip.setPixelColor(i, c);
-		strip.show();
-		delay(wait);
-	}
-}
-
-void rainbow(uint8_t wait) {
-	uint16_t i, j;
-
-	for (j = 0; j<256; j++) {
-		for (i = 0; i<strip.numPixels(); i++) {
-			strip.setPixelColor(i, Wheel((i + j) & 255));
-		}
-		strip.show();
-		delay(wait);
-	}
-}
-
-// Slightly different, this makes the rainbow equally distributed throughout
-void rainbowCycle(uint8_t wait) {
-	uint16_t i, j;
-
-	for (j = 0; j<256 * 5; j++) { // 5 cycles of all colors on wheel
-		for (i = 0; i< strip.numPixels(); i++) {
-			strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
-		}
-		strip.show();
-		delay(wait);
-	}
-}
-
-//Theatre-style crawling lights.
-void theaterChase(uint32_t c, uint8_t wait) {
-	for (int j = 0; j<10; j++) {  //do 10 cycles of chasing
-		for (int q = 0; q < 3; q++) {
-			for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
-				strip.setPixelColor(i + q, c);    //turn every third pixel on
-			}
-			strip.show();
-
-			delay(wait);
-
-			for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
-				strip.setPixelColor(i + q, 0);        //turn every third pixel off
-			}
-		}
-	}
-}
-
-//Theatre-style crawling lights with rainbow effect
-void theaterChaseRainbow(uint8_t wait) {
-	for (int j = 0; j < 256; j++) {     // cycle all 256 colors in the wheel
-		for (int q = 0; q < 3; q++) {
-			for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
-				strip.setPixelColor(i + q, Wheel((i + j) % 255));    //turn every third pixel on
-			}
-			strip.show();
-
-			delay(wait);
-
-			for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
-				strip.setPixelColor(i + q, 0);        //turn every third pixel off
-			}
-		}
-	}
-}
-
-// Input a value 0 to 255 to get a color value.
-// The colours are a transition r - g - b - back to r.
-uint32_t Wheel(byte WheelPos) {
-	WheelPos = 255 - WheelPos;
-	if (WheelPos < 85) {
-		return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
-	}
-	if (WheelPos < 170) {
-		WheelPos -= 85;
-		return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
-	}
-	WheelPos -= 170;
-	return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
-}
-
-#endif
-
-
+loc * targets;
 
 /*
 Following is a Decimal Degrees formatted waypoint for the large tree
@@ -252,7 +178,7 @@ These are GPS command messages (only a few are used).
 *************************************************/
 
 /**************************************************
-Convert Degrees Minutes (DDMM.MMMM) into Decimal Degrees (DDD.DDDD)
+Convert Degrees Minutes (DDDMM.MMMM) into Decimal Degrees (DDD.DDDD)
 
 float degMin2DecDeg(char *cind, char *ccor)
 
@@ -266,14 +192,21 @@ Decimal degrees coordinate.
 **************************************************/
 float degMin2DecDeg(char *cind, char *ccor)
 {
+	//Source for reference : http://stackoverflow.com/questions/18442158/latitude-longitude-in-wrong-format-dddmm-mmmm-2832-3396n -G
 
-	char temp[5];
 	float degrees = 0.0;
-	for (int i = 0; i < sizeof(temp); i++)
-	{
+	double a = strtod(ccor, 0);
+	double d = (int)a / 100;
+	a -= d * 100;
+	degrees = (float)(d + (a / 60));
 
+	if (cind[0] == 'N' || cind[0] == 'E')
+	{
+		//degrees positive if north or east
 	}
-	// add code here
+	//else degrees negative if south or west
+	else if (cind[0] = 'S' || cind[0] == 'W')
+		degrees *= -1;
 
 	return(degrees);
 }
@@ -307,11 +240,12 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 	dz = sin(flat1) - sin(flat2);
 	dx = cos(flon1) * cos(flat1) - cos(flat2);
 	dy = sin(flon1) * cos(flat1);
-	
-	distance = ( asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * 6371);
+
+	distance = (asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * 6371);
 
 	// This will return distance in KM -G
-	//Conversion from KM to feet : 
+	//Conversion from KM to feet : distance *= 3280.8 -G
+
 	distance *= 3280.839895;
 	return(distance);
 }
@@ -330,10 +264,13 @@ angle in decimal degrees from magnetic north (normalize to a range of 0 to 360)
 **************************************************/
 float calcBearing(float flat1, float flon1, float flat2, float flon2)
 {
-	float bearing = 0.0;
-	
 
-	// add code here
+	//Source: http://mathforum.org/library/drmath/view/55417.html
+
+	float bearing = 0.0;
+	float distance = calcDistance(flat1, flon1, flat2, flon2);
+	float temp = (sin(flat2) - sin(flat1)*cos(distance)) / (sin(distance) * cos(flat1));
+	bearing = acos(temp);
 
 	return(bearing);
 }
@@ -353,13 +290,110 @@ parameters are in global data space.
 
 */
 #if NEO_ON
+
+
+
+
+unsigned char dColors[] = {
+	0,
+	127,//3 type COLORSTAGING
+	255//2 type COLORSTAGING
+};
+
+
+
+uint32_t StagedColor(int number) {
+	int r = (number % COLORSTAGING);
+	int g = (int)((float)number * (1.0f / 3.0f)) % COLORSTAGING;
+	int b = (int)((float)number * (1.0f / 9.0f)) % COLORSTAGING;
+	return strip.Color(dColors[r], dColors[g], dColors[b]);
+}
+
+
+void DistanceBarRender(int dist = distance, int factor = 25) {
+	if (dist > 1000)
+	{
+		factor = DISTANCE_LONG_FACTOR;
+	}
+	else if (dist > 100)
+	{
+		factor = DISTANCE_MED_FACTOR;
+	}
+	else
+	{
+		factor = DISTANCE_SHORT_FACTOR;
+	}
+	for (int i = 0; i < 5; i++)
+	{
+		//This math mess makes me sad :( - Probably can be optimized better PBJ
+		strip.setPixelColor(i * 8, StagedColor((dist + ((5 * factor) - i*factor + factor)) / (5 * factor)));
+		strip.show();
+	}
+};
+
+
+unsigned long rendertime;
 void setNeoPixel(void)
 {
-	//strip.
+	// Update min. every 250ms
+	if ((rendertime - millis()) > 250) {
+		rendertime = millis();
+		DistanceBarRender(distance);
+	}
 
 }
 
+
 #endif	// NEO_ON
+
+
+
+/*
+
+Following is the GPS Shield "GPRMC" Message Structure.This message is received
+once a second.You must parse the message to obtain the parameters required for
+the GeoCache project.GPS provides coordinates in Degrees Minutes(DDDMM.MMMM).
+The coordinates in the following GPRMC sample message, after converting to Decimal
+Degrees format(DDD.DDDDDD) is latitude(23.118757) and longitude(120.274060).By
+the way, this coordinate is GlobalTop Technology in Taiwan, who designed and
+manufactured the GPS Chip.
+
+"$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,123.48,260406,3.05,W,A*2C/r/n"
+
+$GPRMC,         // GPRMC Message
+064951.000,     // utc time hhmmss.sss
+A,              // status A=data valid or V=data not valid
+2307.1256,      // Latitude 2307.1256 (degrees minutes format dddmm.mmmm)
+N,              // N/S Indicator N=north or S=south
+12016.4438,     // Longitude 12016.4438 (degrees minutes format dddmm.mmmm)
+E,              // E/W Indicator E=east or W=west
+0.03,           // Speed over ground knots
+165.48,         // Course over ground (decimal degrees format ddd.dd)
+260406,         // date ddmmyy
+3.05,           // Magnetic variation (decimal degrees format ddd.dd)
+W,              // E=east or W=west
+A               // Mode A=Autonomous D=differential E=Estimated
+* 2C             // checksum
+/ r / n            // return and newline
+
+*/
+void ProcessGPSMessage() {
+	//Check if valid RMC
+	if (cstr[18] == 'V') {
+		locdata temp;
+
+		char substr[10];
+		//std::copy(cstr + 7, cstr + 17, substr + 0);
+		memcpy(substr, cstr + 7, sizeof(substr));
+		substr[10] = '\0';
+		temp.time = atof(substr);
+		Serial.println(substr);
+
+		
+
+		cstr[18] = 'D';  //prevent reduntant process
+	};
+}
 
 #if GPS_ON
 /*
@@ -381,54 +415,60 @@ none
 */
 void getGPSMessage(void)
 {
-	uint8_t x = 0, y = 0, isum = 0;
+	//  No sense just sitting there waiting for it since SofwareSerial is getting to buffer anyways.  We need some cycles for other nonsense - PBJ
+	if (gps.available()) {
+		uint8_t x = 0, y = 0, isum = 0;
 
-	memset(cstr, 0, sizeof(cstr));
+		memset(cstr, 0, sizeof(cstr));
 
-	// get nmea string
-	while (true)
-	{
-		if (gps.peek() != -1)
+		// get nmea string
+		while (true)
 		{
-			cstr[x] = gps.read();
-
-			// if multiple inline messages, then restart
-			if ((x != 0) && (cstr[x] == '$'))
+			if (gps.peek() != -1)
 			{
-				x = 0;
-				cstr[x] = '$';
-			}
+				cstr[x] = gps.read();
 
-			// if complete message
-			if ((cstr[0] == '$') && (cstr[x++] == '\n'))
-			{
-				// nul terminate string before /r/n
-				cstr[x - 2] = 0;
-
-				// if checksum not found
-				if (cstr[x - 5] != '*')
+				// if multiple inline messages, then restart
+				if ((x != 0) && (cstr[x] == '$'))
 				{
+					Serial.println(cstr);
 					x = 0;
-					continue;
+					cstr[x] = '$';
 				}
 
-				// convert hex checksum to binary
-				isum = strtol(&cstr[x - 4], NULL, 16);
-
-				// reverse checksum
-				for (y = 1; y < (x - 5); y++) isum ^= cstr[y];
-
-				// if invalid checksum
-				if (isum != 0)
+				// if complete message
+				if ((cstr[0] == '$') && (cstr[x++] == '\n'))
 				{
-					x = 0;
-					continue;
-				}
+					// nul terminate string before /r/n
+					cstr[x - 2] = 0;
 
-				// else valid message
-				break;
+					// if checksum not found
+					if (cstr[x - 5] != '*')
+					{
+						x = 0;
+						continue;
+					}
+
+					// convert hex checksum to binary
+					isum = strtol(&cstr[x - 4], NULL, 16);
+
+					// reverse checksum
+					for (y = 1; y < (x - 5); y++) isum ^= cstr[y];
+
+					// if invalid checksum
+					if (isum != 0)
+					{
+						x = 0;
+						continue;
+					}
+
+					// else valid message
+					break;
+				}
 			}
 		}
+		Serial.println(cstr);
+
 	}
 }
 
@@ -456,6 +496,7 @@ Return:
 none
 
 */
+
 void getGPSMessage(void)
 {
 	static unsigned long gpsTime = 0;
@@ -465,6 +506,7 @@ void getGPSMessage(void)
 
 	// do this once a second
 	gpsTime = millis() + 1000;
+	distance += 1;
 
 	memcpy(cstr, "$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,165.48,260406,3.05,W,A*2C", sizeof(cstr));
 
@@ -473,6 +515,27 @@ void getGPSMessage(void)
 
 #endif	// GPS_ON
 
+void SecureDigWrite() {
+	// if GPRMC message (3rd letter = R)
+	while (cstr[3] == 'R')
+	{
+		// parse message parameters
+		// calculated destination heading
+		// calculated destination distance
+		break;
+	}
+}
+
+void TargetChange() {
+
+	target += 1;
+}
+
+//==============
+// Setup
+//=====================================================
+// Only the main loop should be below this function
+//=====================================================
 void setup(void)
 {
 #if TRM_ON
@@ -480,8 +543,13 @@ void setup(void)
 	Serial.begin(115200);
 #endif	
 
+	//Referenced https://github.com/adafruit/Adafruit_NeoPixel/blob/master/examples/strandtest/strandtest.ino
 #if NEO_ON
 	// init NeoPixel Shield
+	pinMode(NEO_ON, OUTPUT);
+	strip.begin();
+	strip.setBrightness(16);
+	strip.show(); // Initialize all pixels to 'off'
 #endif	
 
 #if SDC_ON
@@ -500,59 +568,41 @@ void setup(void)
 	gps.println(PMTK_API_SET_FIX_CTL_1HZ);
 	gps.println(PMTK_SET_NMEA_OUTPUT_RMC);
 #endif		
-	Serial.begin(9600);
+
 	// init target button here
 }
 
+
+
+
+//==============
+// MAIN LOOP
+//=====================================================
+// Nothing should be after this function
+// Do not write logic in main loop.
+//=====================================================
 void loop(void)
 {
-
-#if NEO_DEBUG_ON && NEO_ON
-	// Some example procedures showing how to display to the pixels:
-	colorWipe(strip.Color(255, 0, 0), 50); // Red
-	colorWipe(strip.Color(0, 255, 0), 50); // Green
-	colorWipe(strip.Color(0, 0, 255), 50); // Blue
-										   //colorWipe(strip.Color(0, 0, 0, 255), 50); // White RGBW
-										   // Send a theater pixel chase in...
-	theaterChase(strip.Color(127, 127, 127), 50); // White
-	theaterChase(strip.Color(127, 0, 0), 50); // Red
-	theaterChase(strip.Color(0, 0, 127), 50); // Blue
-
-	rainbow(20);
-	rainbowCycle(20);
-	theaterChaseRainbow(50);
-#endif
 	// max 1 second blocking call till GPS message received
+
 	getGPSMessage();
 
+	ProcessGPSMessage();
 	// if button pressed, set new target
-
-	// if GPRMC message (3rd letter = R)
-	while (cstr[3] == 'R')
-	{
-		// parse message parameters
-
-		// calculated destination heading
-
-		// calculated destination distance
+	TargetChange();
 
 #if SDC_ON
-		// write current position to SecureDigital then flush
+	// write current position to SecureDigital then flush
+	SecureDigWrite();
 #endif 
-
-		break;
-	}
 
 #if NEO_ON
 	// set NeoPixel target display  target, heading, distance
 	setNeoPixel();
 #endif		
 
-
-
 #if TRM_ON
 	// print debug information to Serial Terminal
-	Serial.println(cstr);
 #endif		
 }
 
