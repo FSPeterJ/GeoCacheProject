@@ -311,7 +311,8 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 	distance = ( asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * 6371);
 
 	// This will return distance in KM -G
-	//Conversion from KM to feet : distance *= 3280.8 -G
+	//Conversion from KM to feet : 
+	distance *= 3280.839895;
 	return(distance);
 }
 
@@ -499,13 +500,12 @@ void setup(void)
 	gps.println(PMTK_API_SET_FIX_CTL_1HZ);
 	gps.println(PMTK_SET_NMEA_OUTPUT_RMC);
 #endif		
-
+	Serial.begin(9600);
 	// init target button here
 }
 
 void loop(void)
 {
-
 
 #if NEO_DEBUG_ON && NEO_ON
 	// Some example procedures showing how to display to the pixels:
