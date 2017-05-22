@@ -431,6 +431,7 @@ void ProcessGPSMessage() {
 		}
 		if (i != s)
 		{
+			//use sscanf instead;
 			memcpy(substrbuffer, cstr + i, i - s);
 			locdataBuffer[locdataCurrent].NS = atof(substrbuffer);
 		}
@@ -486,6 +487,7 @@ none
 */
 void getGPSMessage(void)
 {
+	
 	//  No sense just sitting there waiting for it since SofwareSerial is getting to buffer anyways.  We need some cycles for other nonsense - PBJ
 	if (gps.available()) {
 		uint8_t x = 0, y = 0, isum = 0;
