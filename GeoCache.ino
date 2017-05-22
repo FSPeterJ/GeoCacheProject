@@ -138,7 +138,7 @@ struct locdata : loc {
 	float bearing;
 };
 
-loc targets = {
+loc targets[1] = {
 	//Tree out front
 	loc{
 		28.594532,
@@ -370,6 +370,16 @@ void setNeoPixel(void)
 
 
 #endif	// NEO_ON
+/*
+
+*/
+void ProcessWeightedAverage() {
+
+
+}
+
+
+
 
 
 
