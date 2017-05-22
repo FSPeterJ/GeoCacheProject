@@ -138,7 +138,7 @@ struct locdata : loc {
 	float bearing;
 };
 
-loc targets = {
+loc targets[1] = {
 	//Tree out front
 	loc{
 		28.594532,
@@ -457,13 +457,17 @@ void ProcessGPSMessage() {
 			locdataBuffer[locdataCurrent].EW = atof(substrbuffer);
 		}
 		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
-		//Skip over speed
-		//while (cstr[i] != ',' | i < sizeof(cstr))
-		//{
-		//	i++;
-		//}
-
 		cstr[18] = 'D';  //prevent reduntant
+
+		for (int i = 0; i < BUFFER_SIZE; i++)
+		{
+			char tempBuffer[200];
+			String tempBearing(locdataBuffer[i].bearing, 2);
+			String tempTime(locdataBuffer[i].time);
+			String tempLat(locdataBuffer[i].lat);
+			String tempLon(locdataBuffer[i].lon);
+			sprintf(tempBuffer, "Local data &i: Bearing: %s Lat: %s Long: %s Time: %s ", i, tempBearing.c_str(), tempLat.c_str(), tempLon.c_str(), tempTime.c_str() );
+		}
 	};
 }
 
