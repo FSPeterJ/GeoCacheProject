@@ -278,6 +278,7 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 
 	float dx, dy, dz;
 	flon1 -= flon2;
+
 	flon1 *= (3.1415926536 / 180), flat1 *= (3.1415926536 / 180), flat2 *= (3.1415926536 / 180);
 
 	dz = sin(flat1) - sin(flat2);
@@ -339,7 +340,7 @@ parameters are in global data space.
 
 
 
-unsigned char dColors[] = {
+uint8_t dColors[] = {
 	0,
 	127,//3 type COLORSTAGING
 	255//2 type COLORSTAGING
@@ -376,8 +377,15 @@ void DistanceBarRender(float dist = distance, int factor = 25) {
 	}
 };
 
-void CircleRender() {
 
+
+void MapRender() {
+	for (uint8_t i = 0; i< 25, i++) {
+		strip.setPixelColor(i + ((i / 5) * 3), 0);
+	};
+	uint8_t x;
+	uint8_t y;
+	x = radians;
 
 }
 
