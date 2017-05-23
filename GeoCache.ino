@@ -118,9 +118,10 @@ char cstr[GPS_RX_BUFSIZ];
 // global variables
 uint8_t locdataCurrent = 0;// The latest location index
 uint8_t target = 0;		// Selected target number 
-float heading = 0.0;	// current heading in angle
+float heading = 0.0;	// current heading in degrees
 float distance = 0.0;	// target distance in feet
-float bearing = 0.0;	// target bearing in angle
+float bearing = 0.0;	// target bearing in degrees
+float target_diff = 0.0;	// target offset from current heading in degrees
 
 unsigned long rendertime;
 
@@ -133,7 +134,7 @@ struct loc {
 	char EW;
 };
 
-struct locdata : loc {
+struct locdata : public loc {
 	float time;
 	float heading;
 };
@@ -240,19 +241,6 @@ float degMin2DecDeg(char *cind, char *ccor)
 }
 
 
-loc Midpoint(loc location[], int length) {
-	loc temp;
-	for (int i = 0; i < length; i++)
-	{
-		temp.lat += location[i].lat;
-		temp.lon += location[i].lon;
-	}
-	temp.lat /= length;
-	temp.lon /= length;
-	temp.NS = location[0].NS;
-	temp.EW = location[0].EW;
-	return tmp;
-}
 
 /**************************************************
 Calculate Great Circle Distance between to coordinates using
@@ -380,12 +368,13 @@ void DistanceBarRender(float dist = distance, int factor = 25) {
 
 
 void MapRender() {
-	for (uint8_t i = 0; i< 25, i++) {
+	for (uint8_t i = 0; i < 25; i++) {
 		strip.setPixelColor(i + ((i / 5) * 3), 0);
 	};
 	uint8_t x;
 	uint8_t y;
-	x = radians;
+	x = -radians(target_diff) * 2;
+	y = -radians(target_diff) * 2;
 
 }
 
@@ -436,7 +425,16 @@ void ProcessWeightedAverage() {
 			largestDistanceSum = distanceSum;
 		}
 	}
-	locdataBuffer[largestDistance] = Midpoint({ locdataBuffer[largestDistance], *distanceClosest }, 2);
+	loc temp[2];
+	temp[0].lat = locdataBuffer[largestDistance].lat;
+	temp[0].lat = locdataBuffer[largestDistance].lon;
+	temp[0].EW = locdataBuffer[largestDistance].EW;
+	temp[1].EW = locdataBuffer[largestDistance].EW;
+	temp[0].NS = locdataBuffer[largestDistance].NS;
+	temp[1].NS = locdataBuffer[largestDistance].NS;
+	temp[1].lat = distanceClosest->lat;
+	temp[1].lat = distanceClosest->lon;
+	//locdataBuffer[largestDistance] = (loc)Midpoint(temp, 2);
 
 
 }
@@ -716,10 +714,22 @@ void TargetChange() {
 
 
 void CalculateDistanceBearing() {
-	loc temp = Midpoint(locdataBuffer, BUFFER_SIZE);
-	heading = calcBearing(temp.lat, temp.lon, locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon);
-	float bearingNORTH = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
-	bearing = bearingNORTH - heading;
+
+
+
+
+	float lat;
+	float lon;
+	for (int i = 0; i < BUFFER_SIZE; i++)
+	{
+		lat += locdataBuffer[i].lat;
+		lon += locdataBuffer[i].lon;
+	}
+	lat /= BUFFER_SIZE;
+	lon /= BUFFER_SIZE;
+	heading = calcBearing(lat, lon, locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon);
+	bearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
+	target_diff = bearing - heading;
 	distance = calcDistance(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
 }
 
