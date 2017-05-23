@@ -1,4 +1,6 @@
 #include <math.h>
+#include <SPI.h>
+#include <SD.h>
 /******************************************************************************
 
 GeoCache Hunt Project (GeoCache.cpp)
@@ -94,7 +96,7 @@ Finals Day
 #define NEO_DEBUG_ON 0		// NeoPixelShield
 #define TRM_ON 1		// SerialTerminal
 #define SDC_ON 1		// SecureDigital
-#define GPS_ON 1	// Live GPS Message (off = simulated)
+#define GPS_ON 0	// Live GPS Message (off = simulated)
 
 // define pin usage
 #define NEO_TX	6		// NEO transmit
@@ -123,7 +125,9 @@ float distance = 0.0;	// target distance in feet
 
 unsigned long rendertime;
 
+#define slotSD 4
 
+File dataFile;
 
 struct loc {
 	float lat;
@@ -462,11 +466,12 @@ void ProcessGPSMessage() {
 		for (int i = 0; i < BUFFER_SIZE; i++)
 		{
 			char tempBuffer[200];
-			String tempBearing(locdataBuffer[i].bearing, 2);
-			String tempTime(locdataBuffer[i].time);
-			String tempLat(locdataBuffer[i].lat);
-			String tempLon(locdataBuffer[i].lon);
-			sprintf(tempBuffer, "Local data &i: Bearing: %s Lat: %s Long: %s Time: %s ", i, tempBearing.c_str(), tempLat.c_str(), tempLon.c_str(), tempTime.c_str() );
+			//String tempBearing(locdataBuffer[i].bearing, 6);
+			//String tempTime(locdataBuffer[i].time, 6);
+			//String tempLat(locdataBuffer[i].lat, 6);
+			//String tempLon(locdataBuffer[i].lon, 6);
+			//sprintf(tempBuffer, "Local data %i: Bearing: %s Lat: %s Long: %s Time: %s ", i, tempBearing.c_str(), tempLat.c_str(), tempLon.c_str(), tempTime.c_str() );
+			//Serial.println(tempBuffer);
 		}
 	};
 }
@@ -541,6 +546,7 @@ void getGPSMessage(void)
 						continue;
 					}
 					// else valid message
+
 					break;
 				}
 			}
@@ -589,7 +595,6 @@ void getGPSMessage(void)
 	distance += 1;
 
 	memcpy(cstr, "$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,165.48,260406,3.05,W,A*2C", sizeof(cstr));
-
 	return;
 }
 
@@ -600,8 +605,22 @@ void SecureDigWrite() {
 	while (cstr[3] == 'R')
 	{
 		// parse message parameters
+
 		// calculated destination heading
+		//Swap targets[0] for the relevant target information.
+		float targetBearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[0].lat, targets[0].lon);
 		// calculated destination distance
+		float targetDistance = calcDistance(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[0].lat, targets[0].lon);
+		//Put all information into a buffer and send it out to the SD file on the SD card.
+		char parsedBuffer[200];
+		String tempLat(locdataBuffer[locdataCurrent].lat, 6);
+		String tempLon(locdataBuffer[locdataCurrent].lon, 6);
+		//String tempDistance((int)targetDistance);
+		//String tempBearing((int)targetBearing);
+		sprintf(parsedBuffer, "%s,%s,%i.%i", tempLon.c_str(), tempLat.c_str(), (int)targetBearing, (int)targetDistance);
+		Serial.println(parsedBuffer);
+		dataFile.println(parsedBuffer);
+		dataFile.flush();
 		break;
 	}
 }
@@ -639,6 +658,49 @@ void setup(void)
 	sequential number of the file.  The filename can not be more than 8
 	chars in length (excluding the ".txt").
 	*/
+	//Check if SD is connected
+	char fileName[128];
+	//If something doesn't work here, try to change the pin number on the #define slotSD.
+	if (!SD.begin())
+	{
+		Serial.println("SD card not inserted");
+	}
+	else
+	{
+		Serial.println("SD inserted");
+		for (int i = 0; i < 100 ; i++)
+		{
+			//Check for a file name that doens't already exist and create it.
+			if (i < 10)
+			{
+				//Handles files from 0-9 with 1 char for i.
+				sprintf(fileName, "MyFile0%i.txt", i);
+				if (!SD.exists(fileName))
+				{
+					dataFile = SD.open(fileName, FILE_WRITE);
+					Serial.println("File Created");
+					Serial.println(fileName);
+					break;
+				}
+			}
+			else
+			{
+				//Handles files where i has more than 2 chars 10-99
+				sprintf(fileName, "MyFile%i.txt", i);
+				if (!SD.exists(fileName))
+				{
+					dataFile = SD.open(fileName, FILE_WRITE);
+					Serial.println("File Created");
+					Serial.println(fileName);
+					break;
+				}
+			}
+		}
+		if (!dataFile)
+		{
+			Serial.println("Error opening data file");
+		}
+	}
 #endif
 
 #if GPS_ON
@@ -652,7 +714,12 @@ void setup(void)
 	// init target button here
 }
 
-
+void _loop(void)
+{
+	dataFile.println(millis());
+	dataFile.flush();
+	delay(100);
+}
 
 
 //==============
