@@ -116,10 +116,11 @@ Finals Day
 char cstr[GPS_RX_BUFSIZ];
 
 // global variables
+uint8_t locdataCurrent = 0;// The latest location index
 uint8_t target = 0;		// Selected target number 
-float heading = 0.0;	// target heading in angle
+float heading = 0.0;	// current heading in angle
 float distance = 0.0;	// target distance in feet
-
+float bearing = 0.0;	// target bearing in angle
 
 unsigned long rendertime;
 
@@ -133,10 +134,11 @@ struct loc {
 };
 
 struct locdata : loc {
-	//cheaper than char array
 	float time;
-	float bearing;
+	float heading;
 };
+
+
 
 loc targets[1] = {
 	//Tree out front
@@ -148,9 +150,9 @@ loc targets[1] = {
 	}
 };
 
+
 //Short-term History - Per second
 locdata locdataBuffer[BUFFER_SIZE];
-char locdataCurrent = 0;// The latest location
 
 #if GPS_ON
 #include <SoftwareSerial.h>
@@ -238,18 +240,17 @@ float degMin2DecDeg(char *cind, char *ccor)
 }
 
 
-loc Midpoint(loc * location, int length) {
+loc Midpoint(loc location[], int length) {
 	loc temp;
 	for (int i = 0; i < length; i++)
 	{
 		temp.lat += location[i].lat;
 		temp.lon += location[i].lon;
-
 	}
 	temp.lat /= length;
 	temp.lon /= length;
-	temp.NS = location1.NS;
-	temp.EW = location1.EW;
+	temp.NS = location[0].NS;
+	temp.EW = location[0].EW;
 	return tmp;
 }
 
@@ -374,6 +375,11 @@ void DistanceBarRender(float dist = distance, int factor = 25) {
 		strip.show();
 	}
 };
+
+void CircleRender() {
+
+
+}
 
 
 void setNeoPixel(void)
@@ -550,11 +556,11 @@ void ProcessGPSMessage() {
 		for (int i = 0; i < BUFFER_SIZE; i++)
 		{
 			char tempBuffer[200];
-			String tempBearing(locdataBuffer[i].bearing, 8);
+			String tempBearing(locdataBuffer[i].heading, 8);
 			String tempTime(locdataBuffer[i].time, 8);
 			String tempLat(locdataBuffer[i].lat, 8);
 			String tempLon(locdataBuffer[i].lon, 8);
-			sprintf(tempBuffer, "Local data %i: Bearing: %s Lat: %s Long: %s Time: %s ", i, tempBearing.c_str(), tempLat.c_str(), tempLon.c_str(), tempTime.c_str());
+			sprintf(tempBuffer, "Local data %i: Heading: %s Lat: %s Long: %s Time: %s ", i, tempBearing.c_str(), tempLat.c_str(), tempLon.c_str(), tempTime.c_str());
 			Serial.println(tempBuffer);
 
 		}
@@ -697,8 +703,17 @@ void SecureDigWrite() {
 
 void TargetChange() {
 
-	target += 1;
+	//target += 1;
 }
+
+
+void CalculateDistanceBearing() {
+	loc temp = Midpoint(locdataBuffer, BUFFER_SIZE);
+	heading = calcBearing(temp.lat, temp.lon, locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon);
+	float bearingNORTH = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
+	bearing = bearingNORTH - heading;
+}
+
 
 //==============
 // Setup
