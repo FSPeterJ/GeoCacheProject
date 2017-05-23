@@ -94,7 +94,7 @@ Finals Day
 #define NEO_DEBUG_ON 0		// NeoPixelShield
 #define TRM_ON 1		// SerialTerminal
 #define SDC_ON 1		// SecureDigital
-#define GPS_ON 1	// Live GPS Message (off = simulated)
+#define GPS_ON 0	// Live GPS Message (off = simulated)
 
 // define pin usage
 #define NEO_TX	6		// NEO transmit
@@ -237,6 +237,22 @@ float degMin2DecDeg(char *cind, char *ccor)
 	return(degrees);
 }
 
+
+loc Midpoint(loc * location, int length) {
+	loc temp;
+	for (int i = 0; i < length; i++)
+	{
+		temp.lat += location[i].lat;
+		temp.lon += location[i].lon;
+
+	}
+	temp.lat /= length;
+	temp.lon /= length;
+	temp.NS = location1.NS;
+	temp.EW = location1.EW;
+	return tmp;
+}
+
 /**************************************************
 Calculate Great Circle Distance between to coordinates using
 Haversine formula.
@@ -275,6 +291,8 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 	distance *= 3280.839895;
 	return(distance);
 }
+
+
 
 /**************************************************
 Calculate Great Circle Bearing between two coordinates
@@ -376,6 +394,37 @@ void setNeoPixel(void)
 void ProcessWeightedAverage() {
 
 
+	int largestDistance = 0;
+	locdata * distanceClosest;
+	float largestDistanceSum = 0;
+	//Cycle points
+	for (int i = 0; i < BUFFER_SIZE; i++)
+	{
+		locdata * closest;
+		float closestDist;
+		float distanceSum;
+		//Cycle distances to other points from point
+		for (int c = 0; c < BUFFER_SIZE; c++)
+		{
+			if (c != i)
+			{
+				float pointdist = calcDistance(locdataBuffer[i].lat, locdataBuffer[i].lon, locdataBuffer[c].lat, locdataBuffer[c].lon);
+				distanceSum += pointdist;
+				if (pointdist < closestDist) {
+					closest = &locdataBuffer[c];
+					closestDist = pointdist;
+				}
+			}
+		}
+		if (distanceSum > largestDistanceSum) {
+			largestDistance = i;
+			distanceClosest = closest;
+			largestDistanceSum = distanceSum;
+		}
+	}
+	locdataBuffer[largestDistance] = Midpoint({ locdataBuffer[largestDistance], *distanceClosest }, 2);
+
+
 }
 
 
@@ -415,68 +464,99 @@ A               // Mode A=Autonomous D=differential E=Estimated
 void ProcessGPSMessage() {
 	//Check if valid RMC
 	if (cstr[18] == 'V') {
-		locdataCurrent = ++locdataCurrent > BUFFER_SIZE ? 0 : ++locdataCurrent;
-		char substrbuffer[10];
+		Serial.println(cstr);
+		locdataCurrent = ++locdataCurrent % BUFFER_SIZE;
+		char substrbuffer[16];
 
 		memcpy(substrbuffer, cstr + 7, sizeof(substrbuffer));
-		substrbuffer[10] = '\0';
+		//substrbuffer[13] = '\0';
 		locdataBuffer[locdataCurrent].time = atof(substrbuffer);
-		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
-		int i = 19;
+		int i = 20;
 		int s = i;
 		//Latitude
-		while (cstr[i] != ',' | i < sizeof(cstr))
+
+
+		while (cstr[i] != ',' && i < sizeof(cstr))
 		{
 			i++;
 		}
 		if (i != s)
 		{
-			memcpy(substrbuffer, cstr + i, i - s);
-			locdataBuffer[locdataCurrent].lat = atof(substrbuffer);
+			memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
+			memcpy(substrbuffer, &cstr[s], i - s);
+
+			////substrbuffer[11] = substrbuffer[3];
+			//// substrbuffer[12] = substrbuffer[3];
+			//Serial.println("String in Memory");
+			//
+			////sscanf(substrbuffer, "%f",&( locdataBuffer[locdataCurrent].lat));
+			//locdataBuffer[locdataCurrent].lat = atof(substrbuffer);
+			//Serial.println("atof");
+			//Serial.println(locdataBuffer[locdataCurrent].lat, 6);
+			//locdataBuffer[locdataCurrent].lat = strtod(&substrbuffer[0], NULL);
+			//Serial.println("strtod");
+			//Serial.println(locdataBuffer[locdataCurrent].lat, 6);
+			//String tempLat2(locdataBuffer[locdataCurrent].lat, 6);
+			//Serial.println("Reconvert cstr");
+			//Serial.println(tempLat2);
+
 		}
-		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
-		while (cstr[i] != ',' | i < sizeof(cstr))
+
+		i++;
+		s = i;
+		while (cstr[i] != ',' && i < sizeof(cstr))
 		{
+
 			i++;
 		}
 		if (i != s)
 		{
+			locdataBuffer[locdataCurrent].lat = degMin2DecDeg(&cstr[s], &substrbuffer[0]);
+			Serial.println(locdataBuffer[locdataCurrent].lat);
+
 			//use sscanf instead;
-			memcpy(substrbuffer, cstr + i, i - s);
-			locdataBuffer[locdataCurrent].NS = atof(substrbuffer);
+			//memset(substrbuffer, 0, sizeof(substrbuffer));
+			//memcpy(&substrbuffer, &cstr[s], i - s);
+			locdataBuffer[locdataCurrent].NS = cstr[s];
 		}
-		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
+
+
+		i++;
+		s = i;
 		//Longitude
-		while (cstr[i] != ',' | i < sizeof(cstr))
+		while (cstr[i] != ',' && i < sizeof(cstr))
 		{
 			i++;
 		}
 		if (i != s)
 		{
-			memcpy(substrbuffer, cstr + i, i - s);
-			locdataBuffer[locdataCurrent].lon = atof(substrbuffer);
+			memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
+			memcpy(&substrbuffer, &cstr[s], i - s);
 		}
-		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
-		while (cstr[i] != ',' | i < sizeof(cstr))
+		i++;
+		s = i;
+		while (cstr[i] != ',' && i < sizeof(cstr))
 		{
 			i++;
 		}
 		if (i != s)
 		{
-			memcpy(substrbuffer, cstr + i, i - s);
-			locdataBuffer[locdataCurrent].EW = atof(substrbuffer);
+			locdataBuffer[locdataCurrent].lat = degMin2DecDeg(&cstr[s], &substrbuffer[0]);
+			locdataBuffer[locdataCurrent].EW = cstr[s];
 		}
-		memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
+		//memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
 		cstr[18] = 'D';  //prevent reduntant
 
 		for (int i = 0; i < BUFFER_SIZE; i++)
 		{
 			char tempBuffer[200];
-			String tempBearing(locdataBuffer[i].bearing, 2);
-			String tempTime(locdataBuffer[i].time);
-			String tempLat(locdataBuffer[i].lat);
-			String tempLon(locdataBuffer[i].lon);
-			sprintf(tempBuffer, "Local data &i: Bearing: %s Lat: %s Long: %s Time: %s ", i, tempBearing.c_str(), tempLat.c_str(), tempLon.c_str(), tempTime.c_str() );
+			String tempBearing(locdataBuffer[i].bearing, 8);
+			String tempTime(locdataBuffer[i].time, 8);
+			String tempLat(locdataBuffer[i].lat, 8);
+			String tempLon(locdataBuffer[i].lon, 8);
+			sprintf(tempBuffer, "Local data %i: Bearing: %s Lat: %s Long: %s Time: %s ", i, tempBearing.c_str(), tempLat.c_str(), tempLon.c_str(), tempTime.c_str());
+			Serial.println(tempBuffer);
+
 		}
 	};
 }
@@ -501,65 +581,64 @@ none
 */
 void getGPSMessage(void)
 {
-	
-	//  No sense just sitting there waiting for it since SofwareSerial is getting to buffer anyways.  We need some cycles for other nonsense - PBJ
-	if (gps.available()) {
-		uint8_t x = 0, y = 0, isum = 0;
 
-		memset(cstr, 0, sizeof(cstr));
 
-		// get nmea string
-		while (true)
+	uint8_t x = 0, y = 0, isum = 0;
+
+	memset(cstr, 0, sizeof(cstr));
+
+	// get nmea string
+	while (true)
+	{
+		if (gps.peek() != -1)
 		{
-			if (gps.peek() != -1)
+			cstr[x] = gps.read();
+
+			// if multiple inline messages, then restart
+			if ((x != 0) && (cstr[x] == '$'))
 			{
-				cstr[x] = gps.read();
-
-				// if multiple inline messages, then restart
-				if ((x != 0) && (cstr[x] == '$'))
-				{
 #if DEBUG
-					Serial.println(cstr);
+				Serial.println(cstr);
 #endif // DEBUG
-					x = 0;
-					cstr[x] = '$';
-				}
+				x = 0;
+				cstr[x] = '$';
+			}
 
-				// if complete message
-				if ((cstr[0] == '$') && (cstr[x++] == '\n'))
+			// if complete message
+			if ((cstr[0] == '$') && (cstr[x++] == '\n'))
+			{
+				// nul terminate string before /r/n
+				cstr[x - 2] = 0;
+
+				// if checksum not found
+				if (cstr[x - 5] != '*')
 				{
-					// nul terminate string before /r/n
-					cstr[x - 2] = 0;
-
-					// if checksum not found
-					if (cstr[x - 5] != '*')
-					{
-						x = 0;
-						continue;
-					}
-
-					// convert hex checksum to binary
-					isum = strtol(&cstr[x - 4], NULL, 16);
-
-					// reverse checksum
-					for (y = 1; y < (x - 5); y++) isum ^= cstr[y];
-
-					// if invalid checksum
-					if (isum != 0)
-					{
-						x = 0;
-						continue;
-					}
-					// else valid message
-					break;
+					x = 0;
+					continue;
 				}
+
+				// convert hex checksum to binary
+				isum = strtol(&cstr[x - 4], NULL, 16);
+
+				// reverse checksum
+				for (y = 1; y < (x - 5); y++) isum ^= cstr[y];
+
+				// if invalid checksum
+				if (isum != 0)
+				{
+					x = 0;
+					continue;
+				}
+				// else valid message
+				break;
 			}
 		}
+	}
 #if DEBUG
-		Serial.println(cstr);
+	Serial.println(cstr);
 #endif // DEBUG
 
-	}
+
 }
 
 #else
@@ -597,8 +676,8 @@ void getGPSMessage(void)
 	// do this once a second
 	gpsTime = millis() + 1000;
 	distance += 1;
+	memcpy(cstr, "$GPRMC,064951.000,V,2307.125654,N,12016.443854,E,0.03,165.48,260406,3.05,W,A*2C", sizeof(cstr));
 
-	memcpy(cstr, "$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,165.48,260406,3.05,W,A*2C", sizeof(cstr));
 
 	return;
 }
@@ -678,6 +757,7 @@ void loop(void)
 	getGPSMessage();
 
 	ProcessGPSMessage();
+
 	// if button pressed, set new target
 	TargetChange();
 
@@ -686,6 +766,8 @@ void loop(void)
 	SecureDigWrite();
 #endif 
 
+	//ProcessWeightedAverage();
+	CalculateDistanceBearing();
 #if NEO_ON
 	// set NeoPixel target display target, heading, distance
 	setNeoPixel();
