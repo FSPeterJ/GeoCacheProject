@@ -1,4 +1,3 @@
-#include <math.h>
 #include <SD.h>
 /******************************************************************************
 
@@ -268,7 +267,7 @@ float calcDistance(float flat1, float flon1, float flat2, float flon2)
 	float dx, dy, dz;
 	flon1 -= flon2;
 
-	flon1 *= (3.1415926536 / 180), flat1 *= (3.1415926536 / 180), flat2 *= (3.1415926536 / 180);
+	flon1 *= (PI / 180), flat1 *= (PI / 180), flat2 *= (PI / 180);
 
 	dz = sin(flat1) - sin(flat2);
 	dx = cos(flon1) * cos(flat1) - cos(flat2);
@@ -299,7 +298,6 @@ angle in decimal degrees from magnetic north (normalize to a range of 0 to 360)
 **************************************************/
 float calcBearing(float flat1, float flon1, float flat2, float flon2)
 {
-	const double PI = 3.141592653589793;
 	//Source: http://www.igismap.com/formula-to-find-bearing-or-heading-angle-between-two-points-latitude-longitude/
 	double x;
 	double y;
@@ -386,12 +384,11 @@ void DistanceBarRender(float dist = distance, int factor = 25) {
 void MapRender() {
 
 	for (uint8_t i = 0; i < 25; i++) {
-		strip.setPixelColor(i + ((i /5) *3) , 255,0,0);
+		strip.setPixelColor(i + ((i /5) *3) +3, 0);
 	};
 	uint8_t x1,x2,y1,y2;
-	float rad = radians(target_diff);
-	float scos = cos(rad);
-	float ssine = sin(rad);
+	float scos = cos(radians(target_diff));
+	float ssine = sin(radians(target_diff));
 
 	x1 = (round(ssine * 2.0) + 2) * 8;
 	y1 = (round(scos * 2.0) + 2) + 3;
@@ -576,18 +573,6 @@ void ProcessGPSMessage() {
 		}
 		//memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
 		cstr[18] = 'D';  //prevent reduntant
-
-		for (int i = 0; i < BUFFER_SIZE; i++)
-		{
-			char tempBuffer[200];
-			String tempBearing(locdataBuffer[i].heading, 8);
-			String tempTime(locdataBuffer[i].time, 8);
-			String tempLat(locdataBuffer[i].lat, 8);
-			String tempLon(locdataBuffer[i].lon, 8);
-			sprintf(tempBuffer, "Local data %i: Heading: %s Lat: %s Long: %s Time: %s ", i, tempBearing.c_str(), tempLat.c_str(), tempLon.c_str(), tempTime.c_str());
-			Serial.println(tempBuffer);
-
-		}
 	};
 }
 
