@@ -1,4 +1,5 @@
 #include <math.h>
+#include <SD.h>
 /******************************************************************************
 
 GeoCache Hunt Project (GeoCache.cpp)
@@ -125,7 +126,7 @@ float target_diff = 0.0;	// target offset from current heading in degrees
 
 unsigned long rendertime;
 
-
+File dataFile;
 
 struct loc {
 	float lat;
@@ -173,7 +174,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(40, NEO_TX, NEO_GRB + NEO_KHZ800);
 Following is a Decimal Degrees formatted waypoint for the large tree
 in the parking lot just outside the front entrance of FS3B-116.
 */
-#define GEOLAT0 28.594532
+#define GEOLAT0 28.594532	
 #define GEOLON0 -81.304437
 
 #if GPS_ON
@@ -298,13 +299,28 @@ angle in decimal degrees from magnetic north (normalize to a range of 0 to 360)
 **************************************************/
 float calcBearing(float flat1, float flon1, float flat2, float flon2)
 {
-
-	//Source: http://mathforum.org/library/drmath/view/55417.html
-
+	const double PI = 3.141592653589793;
+	//Source: http://www.igismap.com/formula-to-find-bearing-or-heading-angle-between-two-points-latitude-longitude/
+	double x;
+	double y;
 	float bearing = 0.0;
-	float distance = calcDistance(flat1, flon1, flat2, flon2);
-	float temp = (sin(flat2) - sin(flat1)*cos(distance)) / (sin(distance) * cos(flat1));
-	bearing = acos(temp);
+	float flat1Rad = radians(flat1);
+	float flat2Rad = radians(flat2);
+	float flon1Rad = radians(flon1);
+	float flon2Rad = radians(flon2);
+	float x1 = cos(flat1Rad);
+	float x2 = sin(flon2Rad - flon1Rad);
+	float y1 = cos(flat1Rad);
+	float y2 = sin(flat2Rad);
+	float y3 = sin(flat1Rad);
+	float y4 = cos(flat2Rad);
+	float y5 = cos(flon2Rad - flon1Rad);
+
+	x = x1 * x2;
+	y = y1 * y2 - y3*y4*y5;
+
+	bearing = atan2(x, y);
+	bearing = degrees(bearing);
 
 	return(bearing);
 }
@@ -703,8 +719,22 @@ void SecureDigWrite() {
 	while (cstr[3] == 'R')
 	{
 		// parse message parameters
+
 		// calculated destination heading
+		//Swap targets[0] for the relevant target information.
+		float targetBearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[0].lat, targets[0].lon);
 		// calculated destination distance
+		float targetDistance = calcDistance(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[0].lat, targets[0].lon);
+		//Put all information into a buffer and send it out to the SD file on the SD card.
+		char parsedBuffer[200];
+		String tempLat(locdataBuffer[locdataCurrent].lat, 6);
+		String tempLon(locdataBuffer[locdataCurrent].lon, 6);
+		//String tempDistance((int)targetDistance);
+		//String tempBearing((int)targetBearing);
+		sprintf(parsedBuffer, "%s,%s,%i.%i", tempLon.c_str(), tempLat.c_str(), (int)targetBearing, (int)targetDistance);
+		Serial.println(parsedBuffer);
+		dataFile.println(parsedBuffer);
+		dataFile.flush();
 		break;
 	}
 }
@@ -764,6 +794,49 @@ void setup(void)
 	sequential number of the file.  The filename can not be more than 8
 	chars in length (excluding the ".txt").
 	*/
+	//Check if SD is connected
+	char fileName[128];
+	//If something doesn't work here, try to change the pin number on the #define slotSD.
+	if (!SD.begin())
+	{
+		Serial.println("SD card not inserted");
+	}
+	else
+	{
+		Serial.println("SD inserted");
+		for (int i = 0; i < 100; i++)
+		{
+			//Check for a file name that doens't already exist and create it.
+			if (i < 10)
+			{
+				//Handles files from 0-9 with 1 char for i.
+				sprintf(fileName, "MyFile0%i.txt", i);
+				if (!SD.exists(fileName))
+				{
+					dataFile = SD.open(fileName, FILE_WRITE);
+					Serial.println("File Created");
+					Serial.println(fileName);
+					break;
+				}
+			}
+			else
+			{
+				//Handles files where i has more than 2 chars 10-99
+				sprintf(fileName, "MyFile%i.txt", i);
+				if (!SD.exists(fileName))
+				{
+					dataFile = SD.open(fileName, FILE_WRITE);
+					Serial.println("File Created");
+					Serial.println(fileName);
+					break;
+				}
+			}
+		}
+		if (!dataFile)
+		{
+			Serial.println("Error opening data file");
+		}
+	}
 #endif
 
 #if GPS_ON
