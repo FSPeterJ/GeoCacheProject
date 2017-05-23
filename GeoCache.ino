@@ -425,18 +425,8 @@ void ProcessWeightedAverage() {
 			largestDistanceSum = distanceSum;
 		}
 	}
-	loc temp[2];
-	temp[0].lat = locdataBuffer[largestDistance].lat;
-	temp[0].lat = locdataBuffer[largestDistance].lon;
-	temp[0].EW = locdataBuffer[largestDistance].EW;
-	temp[1].EW = locdataBuffer[largestDistance].EW;
-	temp[0].NS = locdataBuffer[largestDistance].NS;
-	temp[1].NS = locdataBuffer[largestDistance].NS;
-	temp[1].lat = distanceClosest->lat;
-	temp[1].lat = distanceClosest->lon;
-	//locdataBuffer[largestDistance] = (loc)Midpoint(temp, 2);
-
-
+	locdataBuffer[largestDistance].lat = (locdataBuffer[largestDistance].lat + distanceClosest->lat) *0.5;
+	locdataBuffer[largestDistance].lon = (locdataBuffer[largestDistance].lon + distanceClosest->lon) *0.5;
 }
 
 
