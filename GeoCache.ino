@@ -368,14 +368,21 @@ void DistanceBarRender(float dist = distance, int factor = 25) {
 
 
 void MapRender() {
-	for (uint8_t i = 0; i < 25; i++) {
-		strip.setPixelColor(i + ((i / 5) * 3), 0);
-	};
-	uint8_t x;
-	uint8_t y;
-	x = -radians(target_diff) * 2;
-	y = -radians(target_diff) * 2;
 
+	for (uint8_t i = 0; i < 25; i++) {
+		strip.setPixelColor(i + ((i /5) *3) , 255,0,0);
+	};
+	uint8_t x1,x2,y1,y2;
+	float rad = radians(target_diff);
+	float scos = cos(rad);
+	float ssine = sin(rad);
+
+	x1 = (round(ssine * 2.0) + 2) * 8;
+	y1 = (round(scos * 2.0) + 2) + 3;
+	x2 = (round(round(ssine * 2.5)/1.25) + 2) * 8;
+	y2 = (round(round(scos * 2.5)/1.25) + 2) + 3;
+	strip.setPixelColor(x1 + y1, 255, 128, 0);
+	strip.setPixelColor(x2 + y2, 0, 128, 255);
 }
 
 
@@ -385,7 +392,12 @@ void setNeoPixel(void)
 	if ((rendertime - millis()) > 250) {
 		rendertime = millis();
 		DistanceBarRender(distance);
+		Serial.println(target_diff);
+		target_diff = fmod(++target_diff,360);
+
+		MapRender();
 	}
+
 
 }
 
@@ -719,7 +731,7 @@ void CalculateDistanceBearing() {
 	lon /= BUFFER_SIZE;
 	heading = calcBearing(lat, lon, locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon);
 	bearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
-	target_diff = bearing - heading;
+	//target_diff = bearing - heading;
 	distance = calcDistance(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
 }
 
