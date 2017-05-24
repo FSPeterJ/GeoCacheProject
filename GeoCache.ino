@@ -101,6 +101,8 @@ Finals Day
 #define GPS_TX	7		// GPS transmit
 #define GPS_RX	8		// GPS receive
 
+#define TARGET_PIN	2// GPS receive
+
 
 #define DISTANCE_LONG_FACTOR 25
 #define DISTANCE_MED_FACTOR 10
@@ -117,7 +119,7 @@ char cstr[GPS_RX_BUFSIZ];
 
 // global variables
 uint8_t locdataCurrent = 0;// The latest location index
-uint8_t target = 0;		// Selected target number 
+volatile uint8_t target = 0;		// Selected target number 
 float heading = 0.0;	// current heading in degrees
 float distance = 0.0;	// target distance in feet
 float bearing = 0.0;	// target bearing in degrees
@@ -139,13 +141,14 @@ struct locdata : public loc {
 	float heading;
 };
 
-/*
-Following is a Decimal Degrees formatted waypoint for the large tree
-in the parking lot just outside the front entrance of FS3B-116.
-*/
 
-loc targets[1] = {
-	//Tree out front
+#define TARGET_COUNT 99
+
+loc targets[TARGET_COUNT] = {
+	/*
+	Following is a Decimal Degrees formatted waypoint for the large tree
+	in the parking lot just outside the front entrance of FS3B-116.
+	*/
 	loc{
 		28.594532,
 		-81.304437,
@@ -365,9 +368,18 @@ void DistanceBarRender(int factor = 25) {
 	{
 		//This math mess makes me sad :( - Probably can be optimized better PBJ
 		strip.setPixelColor(i * 8, StagedColor((distance + ((LED_BAR_LENGTH * factor) - i*factor + factor)) / (LED_BAR_LENGTH * factor)));
-		strip.show();
+		
 	}
 };
+
+void TargetRender() {
+
+	for (int i = 0; i < 5; i++)
+	{
+		strip.setPixelColor(i * 8 +1, StagedColor((target + ((LED_BAR_LENGTH * 1) - i*1 + 1)) / (LED_BAR_LENGTH * 1)));
+	}
+	Serial.println(target);
+}
 
 
 
@@ -395,7 +407,9 @@ void setNeoPixel(void)
 	if ((rendertime - millis()) > 250) {
 		rendertime = millis();
 		DistanceBarRender();
+		TargetRender();
 		MapRender();
+		strip.show();
 	}
 
 
@@ -437,8 +451,13 @@ void ProcessWeightedAverage() {
 			largestDistanceSum = distanceSum;
 		}
 	}
-	locdataBuffer[largestDistance].lat = (locdataBuffer[largestDistance].lat + distanceClosest->lat) *0.5;
-	locdataBuffer[largestDistance].lon = (locdataBuffer[largestDistance].lon + distanceClosest->lon) *0.5;
+	if (&locdataBuffer[largestDistance] != distanceClosest) {
+		Serial.println(locdataBuffer[largestDistance].lat);
+		Serial.println(distanceClosest->lat);
+		locdataBuffer[largestDistance].lat += (locdataBuffer[largestDistance].lat - distanceClosest->lat) / 2;
+		locdataBuffer[largestDistance].lon += (locdataBuffer[largestDistance].lon - distanceClosest->lon) / 2;
+		Serial.println(locdataBuffer[largestDistance].lat);
+	}
 }
 
 
@@ -599,7 +618,7 @@ void getGPSMessage(void)
 			if ((x != 0) && (cstr[x] == '$'))
 			{
 #if DEBUG
-				Serial.println(cstr);
+				//Serial.println(cstr);
 #endif // DEBUG
 				x = 0;
 				cstr[x] = '$';
@@ -703,12 +722,13 @@ void SecureDigWrite() {
 		//String tempLon(locdataBuffer[locdataCurrent].lon, 6);
 		//String tempDistance((int)targetDistance);
 		//String tempBearing((int)targetBearing);
-		sprintf(parsedBuffer, "%s,%s,%i.%i", 
-			dtostrf(locdataBuffer[locdataCurrent].lat, 8, 6, &parsedBuffer[0]), 
-			dtostrf(locdataBuffer[locdataCurrent].lon, 8, 6, &parsedBuffer[13]), 
+		sprintf(parsedBuffer, "%s,%s,%i.%i",
+			dtostrf(locdataBuffer[locdataCurrent].lat, 8, 6, &parsedBuffer[0]),
+			dtostrf(locdataBuffer[locdataCurrent].lon, 8, 6, &parsedBuffer[13]),
 			(int)bearing, (int)distance);
 
 
+		Serial.println(locdataBuffer[locdataCurrent].lat);
 		Serial.println(parsedBuffer);
 		//dataFile.println(parsedBuffer);
 		//dataFile.flush();
@@ -718,7 +738,7 @@ void SecureDigWrite() {
 
 void TargetChange() {
 
-	//target += 1;
+	++target %= TARGET_COUNT;
 }
 
 
@@ -733,12 +753,10 @@ void CalculateDistanceBearing() {
 	lat /= BUFFER_SIZE;
 	lon /= BUFFER_SIZE;
 	locdataBuffer[locdataCurrent].heading = calcBearing(lat, lon, locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon);
-	bearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
-	//target_diff = bearing - locdataBuffer[locdataCurrent].heading;
-	distance = calcDistance(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
-	//Serial.println(locdataBuffer[locdataCurrent].time);
-	//Serial.println(locdataBuffer[locdataCurrent].heading);
-	//Serial.println(distance);
+	//bearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
+	target_diff = bearing - locdataBuffer[locdataCurrent].heading;
+	//distance = calcDistance(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
+
 }
 
 
@@ -762,6 +780,9 @@ void setup(void)
 	strip.setBrightness(16);
 	strip.show(); // Initialize all pixels to 'off'
 #endif	
+	pinMode(TARGET_PIN, INPUT_PULLUP);
+	attachInterrupt(digitalPinToInterrupt(TARGET_PIN), TargetChange, CHANGE);
+
 
 #if SDC_ON
 	/*
@@ -825,7 +846,7 @@ void setup(void)
 #endif		
 
 	// init target button here
-	}
+}
 
 
 
@@ -847,7 +868,6 @@ void loop(void)
 	CalculateDistanceBearing();
 
 	// if button pressed, set new target
-	TargetChange();
 
 #if SDC_ON
 	// write current position to SecureDigital then flush
