@@ -153,6 +153,20 @@ loc targets[TARGET_COUNT] = {
 		-81.304437,
 		'N',
 		'W'
+	},
+	//Mailbox Area
+	loc{
+	28.596733,
+		-81.304437,
+		'N',
+		'W'
+	},
+	//Dumpster
+	loc{
+	28.594988,
+	-81.2934472,
+		'N',
+		'W'
 	}
 };
 
@@ -366,7 +380,7 @@ void DistanceBarRender(int factor = 25) {
 	for (int i = 0; i < 5; i++)
 	{
 		//This math mess makes me sad :( - Probably can be optimized better PBJ
-		strip.setPixelColor(i * 8, StagedColor((distance + ((LED_BAR_LENGTH * factor) - i*factor )) / (LED_BAR_LENGTH * factor)));
+		strip.setPixelColor(i * 8, StagedColor((distance + ((LED_BAR_LENGTH * factor) - i*factor)) / (LED_BAR_LENGTH * factor)));
 
 	}
 };
@@ -375,7 +389,7 @@ void TargetRender() {
 
 	for (int i = 0; i < 5; i++)
 	{
-		strip.setPixelColor(i * 8 + 1, StagedColor((target + ((LED_BAR_LENGTH * 1) - i * 1 )) / (LED_BAR_LENGTH * 1)));
+		strip.setPixelColor(i * 8 + 1, StagedColor((target + ((LED_BAR_LENGTH * 1) - i * 1)) / (LED_BAR_LENGTH * 1)));
 	}
 }
 
@@ -402,13 +416,13 @@ void MapRender() {
 void setNeoPixel(void)
 {
 	// Update min. every 250ms
-	if ((rendertime - millis()) > 250) {
+	//if ((rendertime - millis()) > 250) {
 		//rendertime = millis();
 		DistanceBarRender();
 		TargetRender();
 		MapRender();
 		strip.show();
-	}
+//	}
 
 
 }
@@ -449,17 +463,17 @@ void ProcessWeightedAverage() {
 			largestDistanceSum = distanceSum;
 		}
 	}
-	if (largestDistance != -1) 
+	if (largestDistance != -1)
 	{
-			Serial.println("BEFORE");
+		Serial.println("BEFORE");
 		for (int i = 0; i < BUFFER_SIZE; i++)
 		{
-			Serial.println(locdataBuffer[i].lat *10000);
+			Serial.println(locdataBuffer[i].lat * 10000);
 		}
 		locdataBuffer[largestDistance].lat += (locdataBuffer[largestDistance].lat - distanceClosest->lat) / 2;
 		locdataBuffer[largestDistance].lon += (locdataBuffer[largestDistance].lon - distanceClosest->lon) / 2;
 		Serial.println(locdataBuffer[largestDistance].lat);
-			Serial.println("AFTER");
+		Serial.println("AFTER");
 		for (int i = 0; i < BUFFER_SIZE; i++)
 		{
 			Serial.println(locdataBuffer[i].lat * 10000);
@@ -712,19 +726,19 @@ void SecureDigWrite() {
 
 
 		//Serial.println(parsedBuffer);
-		//dataFile.println(parsedBuffer);
-		//dataFile.flush();
+		dataFile.println(parsedBuffer);
+		dataFile.flush();
 		cstr[18] = 'R';
 	}
 }
 
-	volatile static unsigned long time = 0;
+volatile static unsigned long time = 0;
 void TargetChange() {
 
 	if (millis() - time > 250)
 	{
 		time = millis();
-		target = (target +1) % TARGET_COUNT;
+		target = (target + 1) % TARGET_COUNT;
 		TargetRender();
 		strip.show();
 	}
@@ -735,13 +749,17 @@ void TargetChange() {
 void CalculateDistanceBearing() {
 	float lat;
 	float lon;
-	for (int i = 0; i < BUFFER_SIZE; i++)
+	int i = 0;
+	for (int c= locdataCurrent -1; i <3; i++, --c%= BUFFER_SIZE)
 	{
-		lat += locdataBuffer[i].lat;
-		lon += locdataBuffer[i].lon;
+		if (c != locdataCurrent) {
+
+			lat += locdataBuffer[i].lat;
+			lon += locdataBuffer[i].lon;
+		}
 	}
-	lat /= BUFFER_SIZE;
-	lon /= BUFFER_SIZE;
+	lat /= i;
+	lon /= i;
 	locdataBuffer[locdataCurrent].heading = calcBearing(lat, lon, locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon);
 	bearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
 	target_diff = bearing - locdataBuffer[locdataCurrent].heading;
@@ -851,26 +869,29 @@ void loop(void)
 {
 	// max 1 second blocking call till GPS message received
 
-	/*if (gps.available()) {*/
+	if (gps.available()) {
 		getGPSMessage();
 		ProcessGPSMessage();
-	
+	}
 
-	ProcessWeightedAverage();
-	CalculateDistanceBearing();
+	if (millis() - rendertime > 250)
+	{
+		ProcessWeightedAverage();
+		CalculateDistanceBearing();
 
-	// if button pressed, set new target
+		// if button pressed, set new target
 
 #if SDC_ON
 	// write current position to SecureDigital then flush
-	SecureDigWrite();
+		SecureDigWrite();
 #endif 
 
 #if NEO_ON
-	// set NeoPixel target display target, heading, distance
-	setNeoPixel();
+		// set NeoPixel target display target, heading, distance
+		setNeoPixel();
+		rendertime = millis();
 #endif		
-
+	}
 #if TRM_ON
 	// print debug information to Serial Terminal
 #endif		
