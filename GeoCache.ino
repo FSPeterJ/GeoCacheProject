@@ -84,7 +84,7 @@ Finals Day
 */
 
 
-#define DEBUG 1
+#define DEBUG 0
 
 
 // NOTE: You must not use digital pins 0, 1, 6, 7, 8, 10, 11, 12, 13 for implementing your button.  
@@ -101,8 +101,7 @@ Finals Day
 #define GPS_TX	7		// GPS transmit
 #define GPS_RX	8		// GPS receive
 
-#define TARGET_PIN	2// GPS receive
-
+#define TARGET_PIN	2// Change Target
 
 #define DISTANCE_LONG_FACTOR 25
 #define DISTANCE_MED_FACTOR 10
@@ -119,7 +118,7 @@ char cstr[GPS_RX_BUFSIZ];
 
 // global variables
 uint8_t locdataCurrent = 0;// The latest location index
-volatile uint8_t target = 0;		// Selected target number 
+volatile uint8_t target = -1;		// Selected target number 
 float heading = 0.0;	// current heading in degrees
 float distance = 0.0;	// target distance in feet
 float bearing = 0.0;	// target bearing in degrees
@@ -142,7 +141,7 @@ struct locdata : public loc {
 };
 
 
-#define TARGET_COUNT 99
+#define TARGET_COUNT 5
 
 loc targets[TARGET_COUNT] = {
 	/*
@@ -367,8 +366,8 @@ void DistanceBarRender(int factor = 25) {
 	for (int i = 0; i < 5; i++)
 	{
 		//This math mess makes me sad :( - Probably can be optimized better PBJ
-		strip.setPixelColor(i * 8, StagedColor((distance + ((LED_BAR_LENGTH * factor) - i*factor + factor)) / (LED_BAR_LENGTH * factor)));
-		
+		strip.setPixelColor(i * 8, StagedColor((distance + ((LED_BAR_LENGTH * factor) - i*factor )) / (LED_BAR_LENGTH * factor)));
+
 	}
 };
 
@@ -376,9 +375,8 @@ void TargetRender() {
 
 	for (int i = 0; i < 5; i++)
 	{
-		strip.setPixelColor(i * 8 +1, StagedColor((target + ((LED_BAR_LENGTH * 1) - i*1 + 1)) / (LED_BAR_LENGTH * 1)));
+		strip.setPixelColor(i * 8 + 1, StagedColor((target + ((LED_BAR_LENGTH * 1) - i * 1 )) / (LED_BAR_LENGTH * 1)));
 	}
-	Serial.println(target);
 }
 
 
@@ -405,7 +403,7 @@ void setNeoPixel(void)
 {
 	// Update min. every 250ms
 	if ((rendertime - millis()) > 250) {
-		rendertime = millis();
+		//rendertime = millis();
 		DistanceBarRender();
 		TargetRender();
 		MapRender();
@@ -423,15 +421,15 @@ void setNeoPixel(void)
 void ProcessWeightedAverage() {
 
 
-	int largestDistance = 0;
-	locdata * distanceClosest;
-	float largestDistanceSum = 0;
+	int largestDistance = -1;
+	locdata * distanceClosest = &locdataBuffer[0];
+	float largestDistanceSum = -1;
 	//Cycle points
 	for (int i = 0; i < BUFFER_SIZE; i++)
 	{
-		locdata * closest;
-		float closestDist;
-		float distanceSum;
+		locdata * closest = &locdataBuffer[i];
+		float closestDist = -1;
+		float distanceSum = -1;
 		//Cycle distances to other points from point
 		for (int c = 0; c < BUFFER_SIZE; c++)
 		{
@@ -451,12 +449,21 @@ void ProcessWeightedAverage() {
 			largestDistanceSum = distanceSum;
 		}
 	}
-	if (&locdataBuffer[largestDistance] != distanceClosest) {
-		Serial.println(locdataBuffer[largestDistance].lat);
-		Serial.println(distanceClosest->lat);
+	if (largestDistance != -1) 
+	{
+			Serial.println("BEFORE");
+		for (int i = 0; i < BUFFER_SIZE; i++)
+		{
+			Serial.println(locdataBuffer[i].lat *10000);
+		}
 		locdataBuffer[largestDistance].lat += (locdataBuffer[largestDistance].lat - distanceClosest->lat) / 2;
 		locdataBuffer[largestDistance].lon += (locdataBuffer[largestDistance].lon - distanceClosest->lon) / 2;
 		Serial.println(locdataBuffer[largestDistance].lat);
+			Serial.println("AFTER");
+		for (int i = 0; i < BUFFER_SIZE; i++)
+		{
+			Serial.println(locdataBuffer[i].lat * 10000);
+		}
 	}
 }
 
@@ -517,21 +524,6 @@ void ProcessGPSMessage() {
 		{
 			memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
 			memcpy(substrbuffer, &cstr[s], i - s);
-
-			////substrbuffer[11] = substrbuffer[3];
-			//// substrbuffer[12] = substrbuffer[3];
-			//Serial.println("String in Memory");
-			//
-			////sscanf(substrbuffer, "%f",&( locdataBuffer[locdataCurrent].lat));
-			//locdataBuffer[locdataCurrent].lat = atof(substrbuffer);
-			//Serial.println("atof");
-			//Serial.println(locdataBuffer[locdataCurrent].lat, 6);
-			//locdataBuffer[locdataCurrent].lat = strtod(&substrbuffer[0], NULL);
-			//Serial.println("strtod");
-			//Serial.println(locdataBuffer[locdataCurrent].lat, 6);
-			//String tempLat2(locdataBuffer[locdataCurrent].lat, 6);
-			//Serial.println("Reconvert cstr");
-			//Serial.println(tempLat2);
 
 		}
 
@@ -601,8 +593,6 @@ none
 */
 void getGPSMessage(void)
 {
-
-
 	uint8_t x = 0, y = 0, isum = 0;
 
 	memset(cstr, 0, sizeof(cstr));
@@ -617,9 +607,6 @@ void getGPSMessage(void)
 			// if multiple inline messages, then restart
 			if ((x != 0) && (cstr[x] == '$'))
 			{
-#if DEBUG
-				//Serial.println(cstr);
-#endif // DEBUG
 				x = 0;
 				cstr[x] = '$';
 			}
@@ -649,16 +636,12 @@ void getGPSMessage(void)
 					x = 0;
 					continue;
 				}
+
 				// else valid message
 				break;
 			}
 		}
 	}
-#if DEBUG
-	//Serial.println(cstr);
-#endif // DEBUG
-
-
 }
 
 #else
@@ -706,8 +689,8 @@ void getGPSMessage(void)
 
 void SecureDigWrite() {
 	// if GPRMC message (3rd letter = R)
-	while (cstr[3] == 'R')
-	{
+	if (cstr[18] == 'D') {
+
 		// parse message parameters
 		// calculated destination heading
 		//Swap targets[0] for the relevant target information.
@@ -717,7 +700,7 @@ void SecureDigWrite() {
 		//Space_Saver
 		//memset(parsedBuffer, 0, sizeof(parsedBuffer));
 
-		;
+
 		//String tempLat(locdataBuffer[locdataCurrent].lat, 6);
 		//String tempLon(locdataBuffer[locdataCurrent].lon, 6);
 		//String tempDistance((int)targetDistance);
@@ -728,17 +711,24 @@ void SecureDigWrite() {
 			(int)bearing, (int)distance);
 
 
-		Serial.println(locdataBuffer[locdataCurrent].lat);
-		Serial.println(parsedBuffer);
+		//Serial.println(parsedBuffer);
 		//dataFile.println(parsedBuffer);
 		//dataFile.flush();
-		break;
+		cstr[18] = 'R';
 	}
 }
 
+	volatile static unsigned long time = 0;
 void TargetChange() {
 
-	++target %= TARGET_COUNT;
+	if (millis() - time > 250)
+	{
+		time = millis();
+		target = (target +1) % TARGET_COUNT;
+		TargetRender();
+		strip.show();
+	}
+
 }
 
 
@@ -753,9 +743,9 @@ void CalculateDistanceBearing() {
 	lat /= BUFFER_SIZE;
 	lon /= BUFFER_SIZE;
 	locdataBuffer[locdataCurrent].heading = calcBearing(lat, lon, locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon);
-	//bearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
+	bearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
 	target_diff = bearing - locdataBuffer[locdataCurrent].heading;
-	//distance = calcDistance(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
+	distance = calcDistance(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
 
 }
 
@@ -781,7 +771,7 @@ void setup(void)
 	strip.show(); // Initialize all pixels to 'off'
 #endif	
 	pinMode(TARGET_PIN, INPUT_PULLUP);
-	attachInterrupt(digitalPinToInterrupt(TARGET_PIN), TargetChange, CHANGE);
+	attachInterrupt(digitalPinToInterrupt(TARGET_PIN), TargetChange, RISING);
 
 
 #if SDC_ON
@@ -861,9 +851,11 @@ void loop(void)
 {
 	// max 1 second blocking call till GPS message received
 
-	getGPSMessage();
+	/*if (gps.available()) {*/
+		getGPSMessage();
+		ProcessGPSMessage();
+	
 
-	ProcessGPSMessage();
 	ProcessWeightedAverage();
 	CalculateDistanceBearing();
 
