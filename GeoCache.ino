@@ -156,15 +156,15 @@ loc targets[TARGET_COUNT] = {
 	},
 	//Mailbox Area
 	loc{
-	28.596733,
+		28.596733,
 		-81.2951332,
 		'N',
 		'W'
 	},
 	//Dumpster
 	loc{
-	28.594988,
-	-81.2934472,
+		28.594988,
+		-81.2934472,
 		'N',
 		'W'
 	}
@@ -467,7 +467,7 @@ void ProcessWeightedAverage() {
 	{
 		locdataBuffer[largestDistance].lat += (locdataBuffer[largestDistance].lat - distanceClosest->lat) / 2;
 		locdataBuffer[largestDistance].lon += (locdataBuffer[largestDistance].lon - distanceClosest->lon) / 2;
-		Serial.println(locdataBuffer[largestDistance].lat);
+		//Serial.println(locdataBuffer[largestDistance].lat);
 
 	}
 }
@@ -608,13 +608,12 @@ void getGPSMessage(void)
 		if (gps.peek() != -1)
 		{
 			cstr[x] = gps.read();
-
 			// if multiple inline messages, then restart
 			if ((x != 0) && (cstr[x] == '$'))
 			{
 				cstr[x] = 0;
 				x = 0;
-				Serial.println(cstr);
+
 				cstr[x] = '$';
 			}
 
@@ -623,7 +622,7 @@ void getGPSMessage(void)
 			{
 				// nul terminate string before /r/n
 				cstr[x - 2] = 0;
-				Serial.println(cstr);
+				//Serial.println(cstr);
 
 				// if checksum not found
 				if (cstr[x - 5] != '*')
@@ -705,14 +704,6 @@ void SecureDigWrite() {
 		// calculated destination distance
 		//Put all information into a buffer and send it out to the SD file on the SD card.
 		char parsedBuffer[50];
-		//Space_Saver
-		//memset(parsedBuffer, 0, sizeof(parsedBuffer));
-
-
-		//String tempLat(locdataBuffer[locdataCurrent].lat, 6);
-		//String tempLon(locdataBuffer[locdataCurrent].lon, 6);
-		//String tempDistance((int)targetDistance);
-		//String tempBearing((int)targetBearing);
 		sprintf(parsedBuffer, "%s,%s,%i.%i",
 			dtostrf(locdataBuffer[locdataCurrent].lon, 8, 6, &parsedBuffer[0]),
 			dtostrf(locdataBuffer[locdataCurrent].lat, 8, 6, &parsedBuffer[13]),
