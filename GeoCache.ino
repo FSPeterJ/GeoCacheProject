@@ -94,7 +94,7 @@ Finals Day
 #define NEO_DEBUG_ON 0		// NeoPixelShield
 #define TRM_ON 1		// SerialTerminal
 #define SDC_ON 1		// SecureDigital
-#define GPS_ON 0	// Live GPS Message (off = simulated)
+#define GPS_ON 1	// Live GPS Message (off = simulated)
 
 // define pin usage
 #define NEO_TX	6		// NEO transmit
@@ -107,7 +107,7 @@ Finals Day
 #define DISTANCE_SHORT_FACTOR 1
 
 #define COLORSTAGING 3
-#define LED_BAR_LENGTH 5.0
+#define LED_BAR_LENGTH 5
 
 #define BUFFER_SIZE 5  //number of history records to store
 
@@ -139,7 +139,10 @@ struct locdata : public loc {
 	float heading;
 };
 
-
+/*
+Following is a Decimal Degrees formatted waypoint for the large tree
+in the parking lot just outside the front entrance of FS3B-116.
+*/
 
 loc targets[1] = {
 	//Tree out front
@@ -169,36 +172,31 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(40, NEO_TX, NEO_GRB + NEO_KHZ800);
 #include <SD.h>
 #endif
 
-/*
-Following is a Decimal Degrees formatted waypoint for the large tree
-in the parking lot just outside the front entrance of FS3B-116.
-*/
-#define GEOLAT0 28.594532	
-#define GEOLON0 -81.304437
+
 
 #if GPS_ON
 /*
 These are GPS command messages (only a few are used).
 */
-#define PMTK_AWAKE "$PMTK010,002*2D"
-#define PMTK_STANDBY "$PMTK161,0*28"
-#define PMTK_Q_RELEASE "$PMTK605*31"
-#define PMTK_ENABLE_WAAS "$PMTK301,2*2E"
-#define PMTK_ENABLE_SBAS "$PMTK313,1*2E"
-#define PMTK_CMD_HOT_START "$PMTK101*32"
-#define PMTK_CMD_WARM_START "$PMTK102*31"
-#define PMTK_CMD_COLD_START "$PMTK103*30"
-#define PMTK_CMD_FULL_COLD_START "$PMTK104*37"
-#define PMTK_SET_BAUD_9600 "$PMTK251,9600*17"
-#define PMTK_SET_BAUD_57600 "$PMTK251,57600*2C"
+//#define PMTK_AWAKE "$PMTK010,002*2D"
+//#define PMTK_STANDBY "$PMTK161,0*28"
+//#define PMTK_Q_RELEASE "$PMTK605*31"
+//#define PMTK_ENABLE_WAAS "$PMTK301,2*2E"
+//#define PMTK_ENABLE_SBAS "$PMTK313,1*2E"
+//#define PMTK_CMD_HOT_START "$PMTK101*32"
+//#define PMTK_CMD_WARM_START "$PMTK102*31"
+//#define PMTK_CMD_COLD_START "$PMTK103*30"
+//#define PMTK_CMD_FULL_COLD_START "$PMTK104*37"
+//#define PMTK_SET_BAUD_9600 "$PMTK251,9600*17"
+//#define PMTK_SET_BAUD_57600 "$PMTK251,57600*2C"
 #define PMTK_SET_NMEA_UPDATE_1HZ  "$PMTK220,1000*1F"
-#define PMTK_SET_NMEA_UPDATE_5HZ  "$PMTK220,200*2C"
+//#define PMTK_SET_NMEA_UPDATE_5HZ  "$PMTK220,200*2C"
 #define PMTK_API_SET_FIX_CTL_1HZ  "$PMTK300,1000,0,0,0,0*1C"
-#define PMTK_API_SET_FIX_CTL_5HZ  "$PMTK300,200,0,0,0,0*2F"
+//#define PMTK_API_SET_FIX_CTL_5HZ  "$PMTK300,200,0,0,0,0*2F"
 #define PMTK_SET_NMEA_OUTPUT_RMC "$PMTK314,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29"
-#define PMTK_SET_NMEA_OUTPUT_GGA "$PMTK314,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29"
-#define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
-#define PMTK_SET_NMEA_OUTPUT_OFF "$PMTK314,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
+//#define PMTK_SET_NMEA_OUTPUT_GGA "$PMTK314,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29"
+//#define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
+//#define PMTK_SET_NMEA_OUTPUT_OFF "$PMTK314,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
 
 #endif // GPS_ON
 
@@ -302,20 +300,12 @@ float calcBearing(float flat1, float flon1, float flat2, float flon2)
 	double x;
 	double y;
 	float bearing = 0.0;
-	float flat1Rad = radians(flat1);
-	float flat2Rad = radians(flat2);
-	float flon1Rad = radians(flon1);
-	float flon2Rad = radians(flon2);
-	float x1 = cos(flat1Rad);
-	float x2 = sin(flon2Rad - flon1Rad);
-	float y1 = cos(flat1Rad);
-	float y2 = sin(flat2Rad);
-	float y3 = sin(flat1Rad);
-	float y4 = cos(flat2Rad);
-	float y5 = cos(flon2Rad - flon1Rad);
-
-	x = x1 * x2;
-	y = y1 * y2 - y3*y4*y5;
+	flat1 = radians(flat1);
+	flat2 = radians(flat2);
+	flon1 = radians(flon1);
+	flon2 = radians(flon2);
+	x = cos(flat1) * sin(flon2 - flon1);
+	y = cos(flat1) * sin(flat2) - sin(flat1)*cos(flat2)*cos(flon2 - flon1);;
 
 	bearing = atan2(x, y);
 	bearing = degrees(bearing);
@@ -358,12 +348,12 @@ uint32_t StagedColor(int number) {
 }
 
 
-void DistanceBarRender(float dist = distance, int factor = 25) {
-	if (dist > 1000)
+void DistanceBarRender(int factor = 25) {
+	if (distance > 1000)
 	{
 		factor = DISTANCE_LONG_FACTOR;
 	}
-	else if (dist > 100)
+	else if (distance > 100)
 	{
 		factor = DISTANCE_MED_FACTOR;
 	}
@@ -374,7 +364,7 @@ void DistanceBarRender(float dist = distance, int factor = 25) {
 	for (int i = 0; i < 5; i++)
 	{
 		//This math mess makes me sad :( - Probably can be optimized better PBJ
-		strip.setPixelColor(i * 8, StagedColor((dist + ((LED_BAR_LENGTH * factor) - i*factor + factor)) / (LED_BAR_LENGTH * factor)));
+		strip.setPixelColor(i * 8, StagedColor((distance + ((LED_BAR_LENGTH * factor) - i*factor + factor)) / (LED_BAR_LENGTH * factor)));
 		strip.show();
 	}
 };
@@ -384,18 +374,18 @@ void DistanceBarRender(float dist = distance, int factor = 25) {
 void MapRender() {
 
 	for (uint8_t i = 0; i < 25; i++) {
-		strip.setPixelColor(i + ((i /5) *3) +3, 0);
+		strip.setPixelColor(i + ((i / 5) * 3) + 3, 0);
 	};
-	uint8_t x1,x2,y1,y2;
+	uint8_t x, y;
 	float scos = cos(radians(target_diff));
 	float ssine = sin(radians(target_diff));
 
-	x1 = (round(ssine * 2.0) + 2) * 8;
-	y1 = (round(scos * 2.0) + 2) + 3;
-	x2 = (round(round(ssine * 2.5)/1.25) + 2) * 8;
-	y2 = (round(round(scos * 2.5)/1.25) + 2) + 3;
-	strip.setPixelColor(x1 + y1, 255, 128, 0);
-	strip.setPixelColor(x2 + y2, 0, 128, 255);
+	x = (round(ssine * 2.0) + 2) * 8;
+	y = (round(scos * 2.0) + 2) + 3;
+	strip.setPixelColor(x + y, 255, 128, 0);
+	x = (round(round(ssine * 2.5) / 1.25) + 2) * 8;
+	y = (round(round(scos * 2.5) / 1.25) + 2) + 3;
+	strip.setPixelColor(x + y, 0, 128, 255);
 }
 
 
@@ -404,10 +394,7 @@ void setNeoPixel(void)
 	// Update min. every 250ms
 	if ((rendertime - millis()) > 250) {
 		rendertime = millis();
-		DistanceBarRender(distance);
-		Serial.println(target_diff);
-		target_diff = fmod(++target_diff,360);
-
+		DistanceBarRender();
 		MapRender();
 	}
 
@@ -490,7 +477,7 @@ A               // Mode A=Autonomous D=differential E=Estimated
 */
 void ProcessGPSMessage() {
 	//Check if valid RMC
-	if (cstr[18] == 'V') {
+	if (cstr[18] == 'A') {
 		Serial.println(cstr);
 		locdataCurrent = ++locdataCurrent % BUFFER_SIZE;
 		char substrbuffer[16];
@@ -539,7 +526,6 @@ void ProcessGPSMessage() {
 		if (i != s)
 		{
 			locdataBuffer[locdataCurrent].lat = degMin2DecDeg(&cstr[s], &substrbuffer[0]);
-			Serial.println(locdataBuffer[locdataCurrent].lat);
 
 			//use sscanf instead;
 			//memset(substrbuffer, 0, sizeof(substrbuffer));
@@ -568,7 +554,7 @@ void ProcessGPSMessage() {
 		}
 		if (i != s)
 		{
-			locdataBuffer[locdataCurrent].lat = degMin2DecDeg(&cstr[s], &substrbuffer[0]);
+			locdataBuffer[locdataCurrent].lon = degMin2DecDeg(&cstr[s], &substrbuffer[0]);
 			locdataBuffer[locdataCurrent].EW = cstr[s];
 		}
 		//memset(substrbuffer, 0, sizeof(substrbuffer)); 	//Clear buffer
@@ -650,7 +636,7 @@ void getGPSMessage(void)
 		}
 	}
 #if DEBUG
-	Serial.println(cstr);
+	//Serial.println(cstr);
 #endif // DEBUG
 
 
@@ -691,7 +677,7 @@ void getGPSMessage(void)
 	// do this once a second
 	gpsTime = millis() + 1000;
 	distance += 1;
-	memcpy(cstr, "$GPRMC,064951.000,V,2307.125654,N,12016.443854,E,0.03,165.48,260406,3.05,W,A*2C", sizeof(cstr));
+	memcpy(cstr, "$GPRMC,064951.000,V,2307.1256,N,12016.4438,E,0.03,165.48,260406,3.05,W,A*2C", sizeof(cstr));
 
 
 	return;
@@ -704,22 +690,28 @@ void SecureDigWrite() {
 	while (cstr[3] == 'R')
 	{
 		// parse message parameters
-
 		// calculated destination heading
 		//Swap targets[0] for the relevant target information.
-		float targetBearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[0].lat, targets[0].lon);
 		// calculated destination distance
-		float targetDistance = calcDistance(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[0].lat, targets[0].lon);
 		//Put all information into a buffer and send it out to the SD file on the SD card.
-		char parsedBuffer[200];
-		String tempLat(locdataBuffer[locdataCurrent].lat, 6);
-		String tempLon(locdataBuffer[locdataCurrent].lon, 6);
+		char parsedBuffer[50];
+		//Space_Saver
+		//memset(parsedBuffer, 0, sizeof(parsedBuffer));
+
+		;
+		//String tempLat(locdataBuffer[locdataCurrent].lat, 6);
+		//String tempLon(locdataBuffer[locdataCurrent].lon, 6);
 		//String tempDistance((int)targetDistance);
 		//String tempBearing((int)targetBearing);
-		sprintf(parsedBuffer, "%s,%s,%i.%i", tempLon.c_str(), tempLat.c_str(), (int)targetBearing, (int)targetDistance);
+		sprintf(parsedBuffer, "%s,%s,%i.%i", 
+			dtostrf(locdataBuffer[locdataCurrent].lat, 8, 6, &parsedBuffer[0]), 
+			dtostrf(locdataBuffer[locdataCurrent].lon, 8, 6, &parsedBuffer[13]), 
+			(int)bearing, (int)distance);
+
+
 		Serial.println(parsedBuffer);
-		dataFile.println(parsedBuffer);
-		dataFile.flush();
+		//dataFile.println(parsedBuffer);
+		//dataFile.flush();
 		break;
 	}
 }
@@ -731,10 +723,6 @@ void TargetChange() {
 
 
 void CalculateDistanceBearing() {
-
-
-
-
 	float lat;
 	float lon;
 	for (int i = 0; i < BUFFER_SIZE; i++)
@@ -744,10 +732,13 @@ void CalculateDistanceBearing() {
 	}
 	lat /= BUFFER_SIZE;
 	lon /= BUFFER_SIZE;
-	heading = calcBearing(lat, lon, locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon);
+	locdataBuffer[locdataCurrent].heading = calcBearing(lat, lon, locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon);
 	bearing = calcBearing(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
-	//target_diff = bearing - heading;
+	//target_diff = bearing - locdataBuffer[locdataCurrent].heading;
 	distance = calcDistance(locdataBuffer[locdataCurrent].lat, locdataBuffer[locdataCurrent].lon, targets[target].lat, targets[target].lon);
+	//Serial.println(locdataBuffer[locdataCurrent].time);
+	//Serial.println(locdataBuffer[locdataCurrent].heading);
+	//Serial.println(distance);
 }
 
 
@@ -780,15 +771,15 @@ void setup(void)
 	chars in length (excluding the ".txt").
 	*/
 	//Check if SD is connected
-	char fileName[128];
+	char fileName[13];
 	//If something doesn't work here, try to change the pin number on the #define slotSD.
 	if (!SD.begin())
 	{
-		Serial.println("SD card not inserted");
+		//Serial.println("SD card not inserted");
 	}
 	else
 	{
-		Serial.println("SD inserted");
+		//Serial.println("SD inserted");
 		for (int i = 0; i < 100; i++)
 		{
 			//Check for a file name that doens't already exist and create it.
@@ -799,7 +790,7 @@ void setup(void)
 				if (!SD.exists(fileName))
 				{
 					dataFile = SD.open(fileName, FILE_WRITE);
-					Serial.println("File Created");
+					//Serial.println("File Created");
 					Serial.println(fileName);
 					break;
 				}
@@ -811,7 +802,7 @@ void setup(void)
 				if (!SD.exists(fileName))
 				{
 					dataFile = SD.open(fileName, FILE_WRITE);
-					Serial.println("File Created");
+					//Serial.println("File Created");
 					Serial.println(fileName);
 					break;
 				}
@@ -819,7 +810,7 @@ void setup(void)
 		}
 		if (!dataFile)
 		{
-			Serial.println("Error opening data file");
+			//Serial.println("Error opening data file");
 		}
 	}
 #endif
@@ -830,10 +821,11 @@ void setup(void)
 	gps.println(PMTK_SET_NMEA_UPDATE_1HZ);
 	gps.println(PMTK_API_SET_FIX_CTL_1HZ);
 	gps.println(PMTK_SET_NMEA_OUTPUT_RMC);
+	//gps.println(PMTK_SET_NMEA_OUTPUT_RMCGGA);
 #endif		
 
 	// init target button here
-}
+	}
 
 
 
@@ -851,7 +843,7 @@ void loop(void)
 	getGPSMessage();
 
 	ProcessGPSMessage();
-	//ProcessWeightedAverage();
+	ProcessWeightedAverage();
 	CalculateDistanceBearing();
 
 	// if button pressed, set new target
