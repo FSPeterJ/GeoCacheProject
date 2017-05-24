@@ -157,7 +157,7 @@ loc targets[TARGET_COUNT] = {
 	//Mailbox Area
 	loc{
 	28.596733,
-		-81.304437,
+		-81.2951332,
 		'N',
 		'W'
 	},
@@ -203,7 +203,7 @@ These are GPS command messages (only a few are used).
 //#define PMTK_CMD_WARM_START "$PMTK102*31"
 //#define PMTK_CMD_COLD_START "$PMTK103*30"
 //#define PMTK_CMD_FULL_COLD_START "$PMTK104*37"
-//#define PMTK_SET_BAUD_9600 "$PMTK251,9600*17"
+#define PMTK_SET_BAUD_9600 "$PMTK251,9600*17"
 //#define PMTK_SET_BAUD_57600 "$PMTK251,57600*2C"
 #define PMTK_SET_NMEA_UPDATE_1HZ  "$PMTK220,1000*1F"
 //#define PMTK_SET_NMEA_UPDATE_5HZ  "$PMTK220,200*2C"
@@ -418,11 +418,11 @@ void setNeoPixel(void)
 	// Update min. every 250ms
 	//if ((rendertime - millis()) > 250) {
 		//rendertime = millis();
-		DistanceBarRender();
-		TargetRender();
-		MapRender();
-		strip.show();
-//	}
+	DistanceBarRender();
+	TargetRender();
+	MapRender();
+	strip.show();
+	//	}
 
 
 }
@@ -465,19 +465,10 @@ void ProcessWeightedAverage() {
 	}
 	if (largestDistance != -1)
 	{
-		Serial.println("BEFORE");
-		for (int i = 0; i < BUFFER_SIZE; i++)
-		{
-			Serial.println(locdataBuffer[i].lat * 10000);
-		}
 		locdataBuffer[largestDistance].lat += (locdataBuffer[largestDistance].lat - distanceClosest->lat) / 2;
 		locdataBuffer[largestDistance].lon += (locdataBuffer[largestDistance].lon - distanceClosest->lon) / 2;
 		Serial.println(locdataBuffer[largestDistance].lat);
-		Serial.println("AFTER");
-		for (int i = 0; i < BUFFER_SIZE; i++)
-		{
-			Serial.println(locdataBuffer[i].lat * 10000);
-		}
+
 	}
 }
 
@@ -518,7 +509,7 @@ A               // Mode A=Autonomous D=differential E=Estimated
 void ProcessGPSMessage() {
 	//Check if valid RMC
 	if (cstr[18] == 'A') {
-		Serial.println(cstr);
+
 		locdataCurrent = ++locdataCurrent % BUFFER_SIZE;
 		char substrbuffer[16];
 
@@ -621,7 +612,9 @@ void getGPSMessage(void)
 			// if multiple inline messages, then restart
 			if ((x != 0) && (cstr[x] == '$'))
 			{
+				cstr[x] = 0;
 				x = 0;
+				//Serial.println(cstr);
 				cstr[x] = '$';
 			}
 
@@ -630,6 +623,7 @@ void getGPSMessage(void)
 			{
 				// nul terminate string before /r/n
 				cstr[x - 2] = 0;
+				//Serial.println(cstr);
 
 				// if checksum not found
 				if (cstr[x - 5] != '*')
@@ -720,8 +714,8 @@ void SecureDigWrite() {
 		//String tempDistance((int)targetDistance);
 		//String tempBearing((int)targetBearing);
 		sprintf(parsedBuffer, "%s,%s,%i.%i",
-			dtostrf(locdataBuffer[locdataCurrent].lat, 8, 6, &parsedBuffer[0]),
-			dtostrf(locdataBuffer[locdataCurrent].lon, 8, 6, &parsedBuffer[13]),
+			dtostrf(locdataBuffer[locdataCurrent].lon, 8, 6, &parsedBuffer[0]),
+			dtostrf(locdataBuffer[locdataCurrent].lat, 8, 6, &parsedBuffer[13]),
 			(int)bearing, (int)distance);
 
 
@@ -750,7 +744,7 @@ void CalculateDistanceBearing() {
 	float lat;
 	float lon;
 	int i = 0;
-	for (int c= locdataCurrent -1; i <3; i++, --c%= BUFFER_SIZE)
+	for (int c = locdataCurrent - 1; i < 3; i++, --c %= BUFFER_SIZE)
 	{
 		if (c != locdataCurrent) {
 
@@ -850,7 +844,7 @@ void setup(void)
 	gps.println(PMTK_SET_NMEA_UPDATE_1HZ);
 	gps.println(PMTK_API_SET_FIX_CTL_1HZ);
 	gps.println(PMTK_SET_NMEA_OUTPUT_RMC);
-	//gps.println(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+
 #endif		
 
 	// init target button here
@@ -869,29 +863,27 @@ void loop(void)
 {
 	// max 1 second blocking call till GPS message received
 
-	if (gps.available()) {
-		getGPSMessage();
-		ProcessGPSMessage();
-	}
+	getGPSMessage();
+	ProcessGPSMessage();
+	ProcessWeightedAverage();
+	CalculateDistanceBearing();
 
-	if (millis() - rendertime > 250)
-	{
-		ProcessWeightedAverage();
-		CalculateDistanceBearing();
 
-		// if button pressed, set new target
+
+
+
+	// if button pressed, set new target
 
 #if SDC_ON
 	// write current position to SecureDigital then flush
-		SecureDigWrite();
+	SecureDigWrite();
 #endif 
 
 #if NEO_ON
-		// set NeoPixel target display target, heading, distance
-		setNeoPixel();
-		rendertime = millis();
+	// set NeoPixel target display target, heading, distance
+	setNeoPixel();
 #endif		
-	}
+
 #if TRM_ON
 	// print debug information to Serial Terminal
 #endif		
