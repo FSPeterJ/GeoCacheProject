@@ -614,7 +614,7 @@ void getGPSMessage(void)
 			{
 				cstr[x] = 0;
 				x = 0;
-				//Serial.println(cstr);
+				Serial.println(cstr);
 				cstr[x] = '$';
 			}
 
@@ -623,7 +623,7 @@ void getGPSMessage(void)
 			{
 				// nul terminate string before /r/n
 				cstr[x - 2] = 0;
-				//Serial.println(cstr);
+				Serial.println(cstr);
 
 				// if checksum not found
 				if (cstr[x - 5] != '*')
