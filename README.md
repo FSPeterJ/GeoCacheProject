@@ -3,7 +3,7 @@
 
 This was a slightly difficult 1-month group project to program a GPS system using an arduino and a 5x8 full color LED display.
 
-The very low memory constraint of the device was an interesting part as any heap corruption from having too much on the stack or heap produced a very colorful mess on the display.  
+The very low memory constraint of the device was an interesting part as any heap corruption from having too much on the stack or fragmented heap produced a very colorful mess on the display.  
 
 Smoothing the current position was also tough to lock down to a good enough feel to make it useful.  A lot of wandering around outside with the laptop and the device sitting on top tweaking values and reading console output. 
 
