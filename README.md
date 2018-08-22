@@ -1,7 +1,7 @@
 # GeoCacheProject
 
 
-This was a slightly difficult 1-month group project to program a GPS system using an arduino and a 5x8 full color LED display.
+This was a 1-month group project to program a GPS system using an arduino and a 5x8 full color LED display.
 
 The very low memory constraint of the device was an interesting part as any heap corruption from having too much on the stack or fragmented heap produced a very colorful mess on the display.  
 
