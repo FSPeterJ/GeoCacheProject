@@ -9,4 +9,4 @@ Smoothing the current position was also tough to lock down to a good enough feel
 
 The end result was a display of a single blue dot on a squarish circle with an occasional trailing orange dot to indicate an angle between the two points.  A 5 dot bar at the bottom would slowly peel off its color with distance with stacked color bars underneath to facilitate longer distances.
 
-The accuracy was fairly decent.  There was some confusion at one point with the flag being on the second story of a building but we figured it out.
+The accuracy was fairly decent with no real problems with navigation.  There was some confusion at one point with the flag being on the second story of a building but we figured it out.
